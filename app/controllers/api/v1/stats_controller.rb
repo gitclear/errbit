@@ -22,14 +22,4 @@ class Api::V1::StatsController < ApplicationController
       format.xml { render xml: stats }
     end
   end
-
-private
-
-  def require_api_key_or_authenticate_user!
-    if params[:api_key].present?
-      return true if (@app = App.where(api_key: params[:api_key]).first)
-    end
-
-    authenticate_user!
-  end
 end

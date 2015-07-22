@@ -18,6 +18,16 @@ private
     redirect_to root_path
   end
 
+  def require_api_key_or_authenticate_user!
+    if params[:api_key].present?
+      if @app = App.where(:api_key => params[:api_key]).first
+        return true
+      end
+    end
+
+    authenticate_user!
+  end
+
   def set_time_zone
     Time.zone = current_user.time_zone if user_signed_in?
   end
