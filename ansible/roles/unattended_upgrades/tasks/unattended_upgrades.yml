@@ -1,0 +1,28 @@
+---
+
+- name: Unattended Upgrades | Installing list of packages
+  apt: 
+    state: present
+    pkg:
+      - unattended-upgrades
+      - mailutils
+
+- name: Listen only on local interface
+  lineinfile: dest=/etc/postfix/main.cf regexp='^inet_interfaces' line='inet_interfaces = 127.0.0.1'
+  notify: restart postfix
+
+- name: Unattended Upgrades | copy 20auto-upgrades
+  copy:
+    src=20auto-upgrades
+    dest=/etc/apt/apt.conf.d/20auto-upgrades
+    mode=0644
+
+- name: Unattended Upgrades | copy 50unattended-upgrades
+  copy:
+    src=50unattended-upgrades
+    dest=/etc/apt/apt.conf.d/50unattended-upgrades
+    mode=0644
+
+- name: Unattended Upgrades | ensure unattended-upgrades service is started and enabled
+  service: name=unattended-upgrades enabled=true state=started
+

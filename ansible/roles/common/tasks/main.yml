@@ -1,0 +1,159 @@
+---
+- name: main | create deploy user
+  user:
+    name: deployuser
+    shell: /bin/bash
+
+- name: Update deployuser .irbrc
+  become: yes
+  become_user: deployuser
+  lineinfile:
+    dest: ~/.irbrc
+    line: "{{ item }}"
+    state: present
+    insertafter: EOF
+    create: yes
+  with_items:
+    - 'gem_spec = Gem::Specification.find_by_name "alloy_rails"'
+    - 'load "#{ gem_spec.full_gem_path }/config/dotfiles/irbrc"'
+  when: inventory_hostname in groups['app']
+  tags: irb-history
+
+- name: Install root .screenrc file
+  copy:
+    src: screenrc-root
+    dest: /root/.screenrc
+  when: inventory_hostname in groups['app']
+  tags: screenrc
+
+- name: Install deployuser .screenrc file
+  copy:
+    src: screenrc-deployuser
+    dest: /home/deployuser/.screenrc
+    owner: deployuser
+    group: deployuser
+  when: inventory_hostname in groups['app']
+  tags: screenrc
+
+- name: common | Add history formatting to root bashrc
+  blockinfile:
+    path: ~/.bashrc
+    insertafter: EOF
+    marker: "# {mark} ANSIBLE MANAGED: HISTORY FORMAT"
+    block: |
+      export HISTTIMEFORMAT="%d/%m/%y %T "
+      export HISTFILESIZE=10000
+      export HISTSIZE=10000
+
+- name: common | Add symlink to mkdir (required to run bundle install for reasons TBD on Ubuntu 20)
+  command: "ln -s /bin/mkdir /usr/bin/mkdir"
+  tags: ubuntu
+  args:
+    creates: /usr/bin/mkdir
+  when: ansible_distribution_release == 'focal'
+
+- name: common | Add history formatting to deployuser bashrc
+  become: yes
+  become_user: deployuser
+  blockinfile:
+    path: ~/.bashrc
+    insertafter: EOF
+    marker: "# {mark} ANSIBLE MANAGED: HISTORY FORMAT"
+    block: |
+      export HISTTIMEFORMAT="%d/%m/%y %T "
+      export HISTFILESIZE=10000
+      export HISTSIZE=10000
+
+- name: common | Add path customization to deployuser bashrc
+  become: yes
+  become_user: deployuser
+  blockinfile:
+    path: ~/.bashrc
+    insertafter: EOF
+    marker: "# {mark} ANSIBLE MANAGED: PATH"
+    block: |
+      export PATH=./bin:$PATH
+  tags: custom_path
+
+- name: user | Allow 'deployuser' to sudo
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^%deployuser'
+    line: '%deployuser ALL=(ALL) NOPASSWD: ALL'
+
+- name: common | Set host name
+  command: "hostnamectl set-hostname {{ inventory_hostname }}.gitclear.com"
+  tags: hostname
+  when: inventory_hostname not in groups['haproxy']
+
+- name: common | Set host name - HAProxy Boxes
+  command: "hostnamectl set-hostname {{ inventory_hostname }}"
+  tags: hostname
+  when: inventory_hostname in groups['haproxy']
+
+- name: common | change timezone to PST
+  command: "timedatectl set-timezone America/Los_Angeles"
+  tags: timezone
+
+- name: common | Ensure project directory
+  file:
+    path: /home/deployuser/gitclear
+    state: directory
+    owner: deployuser
+    group: deployuser
+  when: inventory_hostname in groups['app']
+
+- name: common | Create project directory tree
+  file:
+    path: /home/deployuser/gitclear/{{ item }}
+    state: directory
+    owner: deployuser
+    group: deployuser
+  with_items:
+    - releases
+    - shared
+    - shared/config
+    - shared/node_modules
+    - shared/public/uploads
+    - shared/tmp/pids
+  when: inventory_hostname in groups['app']
+
+- name: common | Install misc packages
+  apt:
+    state: present
+    update_cache: yes
+    pkg:
+      - ntp
+      - acl
+
+- include: resolver.yml
+  tags: resolver
+
+- include: ssh_keys.yml
+  tags: ssh_keys
+
+- include: fail2ban.yml
+  tags: fail2ban
+  when: inventory_hostname not in groups['haproxy']
+
+- include: ssh_security.yml
+  tags: ssh_security
+
+- include: logrotate.yml
+  tags: logrotate
+
+- name: common | Install ufw
+  include: ufw.yml
+  tags: ufw
+  when: inventory_hostname not in groups['errbit'] or inventory_hostname not in groups['haproxy']
+
+- name: Common | performance tweaks
+  include: performance.yml
+  tags: performance
+  when: ansible_virtualization_role == "host"
+
+- include: ../../common/tasks/webpack.yml
+  tags: webpacker
+  # To specify multiple groups, per https://stackoverflow.com/questions/61723033/run-ansible-task-on-multiple-inventory-host-groups can use (groups['app'] + groups['staging']) or this:
+  when: inventory_hostname in lookup('inventory_hostnames', 'app:staging')

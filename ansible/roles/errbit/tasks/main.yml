@@ -1,0 +1,95 @@
+# Tasks to configure servers that will be serving the erribt app via apache - assumes the server already has apache
+# and passenger installed from some other role.
+---
+- name: Errbit | Install rvm
+  ansible.builtin.include_tasks: rvm.yml
+  tags: rvm
+
+- name: Errbit | Install ruby
+  ansible.builtin.include_tasks: ruby.yml
+  tags: ruby
+
+- name: Errbit | Install SSL certificates
+  ansible.builtin.include_tasks: certs.yml
+  tags: certs
+
+- name: Errbit | Configure nginx
+  ansible.builtin.include_tasks: nginx.yml
+  tags:
+    - nginx
+    - passenger
+
+- name: Errbit | Create /home/errbit directory
+  ansible.builtin.file:
+    path: /home/errbit
+    owner: deployuser
+    state: directory
+    mode: '0700'
+
+- name: Errbit | Create deploy directories
+  remote_user: deployuser
+  ansible.builtin.file:
+    path: /home/errbit/{{ item }}
+    state: directory
+    mode: '0755'
+  with_items:
+    - releases
+    - shared
+    - shared/config
+    - shared/log
+
+- name: Add errbit rcp alias to deployuser bashrc
+  become: true
+  become_user: deployuser
+  ansible.builtin.blockinfile:
+    path: ~/.bashrc
+    insertafter: EOF
+    block: |
+      alias rcp='bundle exec rails c production'
+      cd /home/errbit/current
+  tags: bash
+
+- name: Errbit | Load variables for .env
+  ansible.builtin.include_vars: errbit_env_content.yml
+
+- name: Errbit | Create .env
+  remote_user: deployuser
+  ansible.builtin.template:
+    src: errbit.env
+    dest: /home/errbit/shared/.env
+    mode: "0600"
+
+- name: Errbit | Add logrotate config
+  ansible.builtin.copy:
+    src: logrotate-errbit
+    dest: /etc/logrotate.d/errbit
+    mode: "0644"
+
+- name: Errbit | Install prerequisites
+  ansible.builtin.apt:
+    pkg: "{{ item }}"
+    state: latest
+  with_items:
+    - nodejs
+    - libxml2-dev
+
+- name: Errbit | Install Monit config file
+  ansible.builtin.copy:
+    src: monit-nginx.conf
+    dest: /etc/monit/conf.d/nginx.conf
+    mode: "0644"
+
+- name: Errbit | Add crontab entry to trim old issues
+  remote_user: deployuser
+  ansible.builtin.copy:
+    src: clear_old_problems.sh
+    dest: ~/clear_old_problems.sh
+    mode: "0755"
+
+- name: Errbit | Add crontab entry to trim old issues
+  remote_user: deployuser
+  ansible.builtin.cron:
+    name: Trim old errbit issues
+    minute: '10'
+    hour: '12'
+    job: /home/deployuser/clear_old_problems.sh

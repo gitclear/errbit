@@ -1,0 +1,51 @@
+# Installs ruby via rvm - note that this will fail if a package is not installed that it needs, in which case the
+# package needs to be added to apt.yml because we are not installing as root and can't enter the root password to let
+# rvm install the package itself.
+---
+- name: ruby | Install prerequisites
+  ansible.builtin.apt:
+    state: present
+    pkg:
+      - gawk
+      - g++
+      - make
+      - libreadline6-dev
+      - libssl-dev
+      - libyaml-dev
+      - libsqlite3-dev
+      - sqlite3
+      - autoconf
+      - libgdbm-dev
+      - libncurses5-dev
+      - automake
+      - libtool
+      - bison
+      - pkg-config
+      - libffi-dev
+      - libgmp-dev
+      - graphicsmagick-imagemagick-compat
+      - zlib1g-dev
+
+- name: ruby | Install ruby
+  become: true
+  become_user: deployuser
+  ansible.builtin.shell: |
+    ~/.rvm/bin/rvm install \
+    --autolibs=2 \
+    {{ (set_default is not defined or set_default) | ternary("--default", "") }} \
+    {{ ruby_version }}
+    creates: ~/.rvm/rubies/ruby-{{ ruby_version }}
+
+- name: ruby | Create gemset
+  become: true
+  become_user: deployuser
+  ansible.builtin.command:
+    cmd: rvm use --create {{ ruby_version }}@{{ ruby_gemset }}"
+    creates: ~/.rvm/gems/ruby-{{ ruby_version }}@{{ ruby_gemset }}
+
+- name: ruby | Install bundler
+  become: true
+  become_user: deployuser
+  ansible.builtin.command: '~/.rvm/wrappers/ruby-{{ item }}/gem install bundler:{{ ruby_bundler_version }}'
+  with_items:
+    - "{{ ruby_version }}@{{ ruby_gemset }}"

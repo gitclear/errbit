@@ -1,0 +1,66 @@
+---
+- name: nginx | Add passenger nginx repository key
+  apt_key:
+    id: 561F9B9CAC40B2F7
+    keyserver: keyserver.ubuntu.com
+    state: present
+
+- name: nginx | Add passenger nginx repository
+  apt_repository:
+    repo: deb https://download:87d14108d9d5dee7a08db740a04aa7b007dd40850e0891987e8942255f34bd71@www.phusionpassenger.com/enterprise_apt precise main
+    update_cache: yes
+
+# Lets specify the versions we want to install, if we keep as present it will never update via ansible
+# and if we set state as latest we run the risk of an update when we are not ready for it.
+- name: nginx | Install nginx
+  apt:
+    pkg: "{{ item }}"
+    state: present
+  with_items:
+    - nginx-extras=1:1.12.1-9.5.1.10~precise1
+    - passenger-enterprise=1:5.1.10-2~precise1
+
+- name: nginx | Load passenger license file contents
+  include_vars: vars/passenger_license_contents.yml
+
+- name: nginx | Install passenger license file
+  copy:
+    content: "{{ passenger_license_contents }}"
+    dest: /etc/passenger-enterprise-license
+    mode: 0644
+
+- name: nginx | Install nginx config file
+  template:
+    src: templates/nginx.conf
+    dest: /etc/nginx/nginx.conf
+    mode: 0644
+  notify:
+    - reload nginx
+  tags: nginx_config
+
+- name: nginx | Remove default nginx server
+  file:
+    dest: "{{ item }}"
+    state: absent
+  with_items:
+    - /etc/nginx/sites-enabled/default
+    - /etc/nginx/conf.d/default.conf
+  notify:
+    - reload nginx
+
+- name: nginx | Add nginx logrotate config
+  copy:
+    src: logrotate-nginx
+    dest: /etc/logrotate.d/nginx
+
+- name: nginx | Gather IP address facts
+  include: ../../../tasks/gather_ip_address_facts.yml
+
+- name: nginx | Add errbit config
+  template:
+    src: nginx-errbit.conf
+    dest: /etc/nginx/conf.d/errbit.conf
+    mode: 0644
+  notify:
+    - reload nginx
+  tags: nginx_config

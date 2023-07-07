@@ -1,0 +1,19 @@
+---
+- name: papertrail | Install dependencies
+  apt:
+    pkg: rsyslog-gnutls
+    state: present
+ 
+- name: papertrail | Install certificate
+  copy:
+    src: papertrail-bundle.pem
+    dest: /etc/ssl/certs/papertrail-bundle.pem
+    mode: 0444
+  notify: restart rsyslog
+
+- name: papertrail | Install config file
+  copy:
+    src: papertrail.conf
+    dest: /etc/rsyslog.d/70-papertrail.conf
+    mode: 0444
+  notify: restart rsyslog

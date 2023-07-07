@@ -1,0 +1,2 @@
+passenger_version: 5.3.2
+passenger_rails_env: production

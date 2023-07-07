@@ -1,0 +1,10 @@
+---
+- name: sshd | copy sshd_config
+  copy:
+    src: sshd_config-{{ ansible_distribution_version }}
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+  notify:
+    - restart sshd
+  tags: sshd_copy

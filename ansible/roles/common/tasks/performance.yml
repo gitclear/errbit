@@ -1,0 +1,25 @@
+# Tasks to change the governor from ondemand to performance when available
+---
+
+- name: Performance | Install cpufrequtils
+  apt:
+    name: cpufrequtils
+    state: present
+
+- name: Performance | Configure performance governor
+  shell: for i in $(seq 0 $((`grep -E '^model name' /proc/cpuinfo -c` - 1))); do cpufreq-set -g performance -c $i; done
+  when: ansible_system_vendor != "Dell Inc."
+
+- name: Performance | Set default performance governor
+  ini_file:
+    path: /etc/default/cpufrequtils
+    section: null
+    option: GOVERNOR
+    value: performance
+    no_extra_spaces: yes
+
+- name: Performance | Disable ondemand service
+  service:
+    name: ondemand
+    state: stopped
+    enabled: no

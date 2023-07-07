@@ -1,0 +1,9 @@
+---
+- name: restart sshd
+  service: name=ssh state=restarted
+
+- name: restart ufw
+  service: name=ufw state=restarted
+
+- name: restart unbound
+  service: name=unbound enabled=yes state=restarted

@@ -1,0 +1,7 @@
+---
+- name: logrotate | Install packages
+  apt: 
+    state: present
+    pkg:
+      - logrotate 
+

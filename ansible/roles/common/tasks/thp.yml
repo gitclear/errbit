@@ -1,0 +1,14 @@
+# modified from https://github.com/SimpliField/ansible-transparent-huge-pages/
+- name: Add init script to disable transparent-huge-pages
+  copy:
+    src: disable-transparent-hugepages
+    dest: "/etc/init.d/disable-transparent-hugepages"
+    mode: 0755
+  tags: transparent_huge_pages
+
+- name: run service to disable transparent hugepages
+  service:
+    name: disable-transparent-hugepages
+    state: started
+    enabled: yes
+  tags: transparent_huge_pages

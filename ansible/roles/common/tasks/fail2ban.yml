@@ -1,0 +1,12 @@
+---
+- name: apt | Install fail2ban security
+  apt: 
+    state: present
+    pkg:
+      - fail2ban
+
+- name: conf | Copy conf file to .local
+  copy:
+    remote_src: true
+    src: /etc/fail2ban/jail.conf
+    dest: /etc/fail2ban/jail.local

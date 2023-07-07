@@ -1,0 +1,6 @@
+---
+errbit_mongo_username: "{{ vault_errbit_mongo_username }}"
+errbit_mongo_password: "{{ vault_errbit_mongo_password }}"
+errbit_smtp_username: "{{ vault_errbit_smtp_username }}"
+errbit_smtp_password: "{{ vault_errbit_smtp_password }}"
+errbit_secret_key_base: "{{ vault_errbit_secret_key_base }}"

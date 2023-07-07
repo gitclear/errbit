@@ -1,0 +1,57 @@
+---
+- name: conf | Disable password authentication
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    line: PasswordAuthentication no
+    regexp: '^PasswordAuthentication .*$'
+    state: present
+  notify:
+    - restart sshd
+
+- name: conf | Disable root login
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    line: PermitRootLogin no
+    state: present
+    regexp: '^PermitRootLogin .*$'
+  notify:
+    - restart sshd
+
+- name: conf | Enable userenv
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    line: PermitUserEnvironment yes
+    state: present
+  notify:
+    - restart sshd
+
+- name: conf | Enable ClientAliveInterval
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    line: ClientAliveInterval 120
+    state: present
+  notify:
+    - restart sshd
+
+- name: conf | Disable ChallengeResponseAuthentication
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    line: ChallengeResponseAuthentication no
+    state: present
+    regexp: '^ChallengeResponseAuthentication .*$'
+  notify:
+    - restart sshd
+
+- name: sshd | Install prerequisites for sshrc with IP detection
+  apt:
+    name: mailutils
+  tags: sshrc
+
+- name: sshd | Install sshrc with IP detection
+  copy:
+    src: sshrc
+    dest: /etc/ssh/sshrc
+    mode: 0755
+  notify:
+    - restart sshd
+  tags: sshrc

@@ -1,0 +1,35 @@
+EMAIL=devops@bonanza.com
+LOG_FILE=.ssh/ssh_ips.log
+HOSTNAME=$(hostname -s)
+
+# $PPID is not set to the correct PPID when this executes, so we need to get the PID of the ssh process from the auth socket
+SSH_PROCESS_ID=$(echo "$SSH_AUTH_SOCK" | cut -d'.' -f2)
+
+SSH_KEY_FINGERPRINT=$(grep -P "sshd.$SSH_PROCESS_ID.:.*matching .SA key" /var/log/auth.log 2>/dev/null | tail -n 1 | grep -o "\S*$")
+
+if [ -z "$SSH_KEY_FINGERPRINT" ]; then
+  SSH_KEY_FINGERPRINT="UNAVAILABLE"
+fi
+
+if [ ! -f "$LOG_FILE" ]; then
+  file=$(echo $LOG_FILE | rev | cut -d / -f1 | rev)
+  dir=$(echo $LOG_FILE | rev | cut -d / -f2- | rev)
+  mkdir -p $dir
+  touch $LOG_FILE
+fi
+
+if [ -z "$SSH_CONNECTION" ] ; then
+  logger -t ssh-wrapper $USER login from unknown SSH_CONNECTION
+  echo "User $USER just logged without SSH_CONNECTION defined" | s-nail -s "SSH Login - $HOSTNAME" -S smtp=mail.gitclear.com -r no-reply@gitclear.com $EMAIL &
+
+else
+  ip=${SSH_CONNECTION%% *}
+  if grep -Fxq "$ip" $LOG_FILE
+  then
+    :
+  else
+    echo $ip >> $LOG_FILE
+    logger -t ssh-wrapper $USER login from $ip
+    echo "User $USER just logged in from $ip\n\nKey Fingerprint: $SSH_KEY_FINGERPRINT\n\nKey User: $SSH_KEY_USER\n\n" | s-nail -s "SSH Login - $HOSTNAME" -S smtp=mail.gitclear.com -r no-reply@gitclear.com $EMAIL &
+  fi
+fi

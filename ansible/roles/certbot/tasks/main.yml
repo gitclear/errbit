@@ -1,0 +1,44 @@
+---
+
+- name: Certbot | add certbot repo on Ubuntu < 20
+  ansible.builtin.apt_repository:
+    repo: "ppa:certbot/certbot"
+    state: present
+    update_cache: true
+  tags: certbot
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_release != 'focal'
+
+- name: Certbot | Install certbot on Ubuntu < 20
+  ansible.builtin.apt:
+    pkg: "python-certbot-nginx"
+  tags: certbot
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_release != 'focal'
+
+- name: Certbot | Install certbot on Ubuntu 20
+  ansible.builtin.apt:
+    pkg:
+      - certbot
+      - python3-certbot-nginx
+  tags: certbot
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_release == 'focal'
+
+- name: Certbot | register the server
+  ansible.builtin.command: certbot register --agree-tos -m devops@gitclear.com.com -n
+  args:
+    creates: /etc/letsencrypt/accounts
+  tags: certbot
+
+- name: Certbot | get certificates for Errbit domains
+  ansible.builtin.command: "certbot --nginx -d {{ inventory_hostname }} -n"
+  args:
+    creates: "/etc/letsencrypt/live/{{ inventory_hostname }}"
+  tags:
+    - certbot
+    - certbot_issue
+  when: inventory_hostname in groups['errbit']
+
+- name: Certbot | renew certificates
+  ansible.builtin.command: certbot renew
+  tags:
+    - certbot
+    - certbot_renew

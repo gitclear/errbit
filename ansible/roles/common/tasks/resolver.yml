@@ -1,0 +1,32 @@
+---
+#
+# Resolver Playbook to manage /etc/resolv.conf
+#
+
+- name: resolver | Install Unbound - Debian
+  apt:
+    name: unbound
+    state: latest
+    update_cache: yes
+  notify: restart unbound
+
+- name: resolver | Stop and disable resolved
+  service:
+    name: systemd-resolved
+    state: stopped
+    enabled: no
+
+- name: resolver | remove /etc/resolv.conf link
+  file:
+    path: /etc/resolv.conf
+    state: absent
+
+- name: resolver | Configure /etc/resolv.conf
+  copy:
+    src: resolv.conf
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart unbound
+

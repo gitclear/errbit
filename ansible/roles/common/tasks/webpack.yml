@@ -1,0 +1,45 @@
+---
+- name: Webpack | Install repository keys
+  apt_key:
+    url: "{{ item }}"
+    state: present
+  with_items:
+    - https://dl.yarnpkg.com/debian/pubkey.gpg
+  tags: node
+
+- name: Webpack |  Add yarn apt repository
+  apt_repository:
+    repo: deb https://dl.yarnpkg.com/debian/ stable main
+    state: present
+    filename: yarn
+    update_cache: yes
+
+- name: Webpack | Install packages
+  apt:
+    name: "{{ packages }}"
+    state: latest
+    update_cache: true
+  vars:
+    packages:
+      - yarn
+  tags:
+    - node
+
+- name: Webpack | Provision NPM modules
+  become: yes
+  become_user: deployuser
+  npm:
+    path: /home/deployuser/gitclear/{{ item }}/shared/node_modules
+    state: present
+  with_items:
+    - staging1
+    - staging2
+  when: staging is defined
+
+- name: Webpack | Provision NPM modules
+  become: yes
+  become_user: deployuser
+  npm:
+    path: /home/deployuser/gitclear/shared/node_modules
+    state: present
+  when: staging is not defined
