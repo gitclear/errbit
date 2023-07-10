@@ -1,0 +1,4493 @@
+From f48a4e8a118a3224a46151f641a1121d445ac9ad Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Fri, 4 Apr 2014 14:23:12 -0700
+Subject: [PATCH 01/67] Enable backtrace links for vendor/ files
+
+---
+ app/models/backtrace_line.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/models/backtrace_line.rb b/app/models/backtrace_line.rb
+index f517ad86f..e375ce038 100644
+--- a/app/models/backtrace_line.rb
++++ b/app/models/backtrace_line.rb
+@@ -1,6 +1,6 @@
+ class BacktraceLine
+   include Mongoid::Document
+-  IN_APP_PATH = %r{^\[PROJECT_ROOT\](?!(\/vendor))/?}
++  IN_APP_PATH = %r{^\[PROJECT_ROOT\]/?}
+   GEMS_PATH   = %r{\[GEM_ROOT\]\/gems\/([^\/]+)}
+ 
+   field :number, :type => Integer
+
+From f778c243a962068e7f37c38ef1419073058dd2a1 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Tue, 16 Oct 2012 17:26:58 -0700
+Subject: [PATCH 02/67] Add (optional) specification of rvm ruby string in
+ config.yml Conflicts: 	Gemfile
+
+Conflicts:
+	Gemfile.lock
+
+Conflicts:
+	Gemfile.lock
+
+Conflicts:
+	Gemfile
+	Gemfile.lock
+---
+ Gemfile                   |   1 +
+ Gemfile.lock              | 186 ++++++++++++++++++++------------------
+ config/config.example.yml |   2 +
+ config/deploy.example.rb  |   6 ++
+ 4 files changed, 106 insertions(+), 89 deletions(-)
+
+diff --git a/Gemfile b/Gemfile
+index c471a1a3a..e1709bb4b 100644
+--- a/Gemfile
++++ b/Gemfile
+@@ -89,6 +89,7 @@ end
+ 
+ group :development do
+   gem 'capistrano', '~> 2.0', :require => false
++  gem 'rvm-capistrano'
+ 
+   # better errors
+   gem 'better_errors'
+diff --git a/Gemfile.lock b/Gemfile.lock
+index 6c48733e7..ca599caca 100644
+--- a/Gemfile.lock
++++ b/Gemfile.lock
+@@ -32,14 +32,14 @@ GEM
+     activesupport (3.2.17)
+       i18n (~> 0.6, >= 0.6.4)
+       multi_json (~> 1.0)
+-    addressable (2.3.5)
+-    airbrake (3.1.14)
++    addressable (2.3.6)
++    airbrake (3.1.16)
+       builder
+-      json
++      multi_json
+     arel (3.0.3)
+-    atomic (1.1.14)
+-    bcrypt-ruby (3.1.2)
+-    better_errors (1.0.1)
++    atomic (1.1.16)
++    bcrypt (3.1.7)
++    better_errors (1.1.0)
+       coderay (>= 1.0.0)
+       erubis (>= 2.6.6)
+     binding_of_caller (0.7.2)
+@@ -60,13 +60,13 @@ GEM
+       net-sftp (>= 2.0.0)
+       net-ssh (>= 2.0.14)
+       net-ssh-gateway (>= 1.1.0)
+-    capybara (2.1.0)
++    capybara (2.2.1)
+       mime-types (>= 1.16)
+       nokogiri (>= 1.3.3)
+       rack (>= 1.0.0)
+       rack-test (>= 0.5.4)
+       xpath (~> 2.0)
+-    coderay (1.0.9)
++    coderay (1.1.0)
+     columnize (0.3.6)
+     coveralls (0.7.0)
+       multi_json (~> 1.3)
+@@ -74,33 +74,34 @@ GEM
+       simplecov (>= 0.7)
+       term-ansicolor
+       thor
+-    crack (0.4.1)
+-      safe_yaml (~> 0.9.0)
++    crack (0.4.2)
++      safe_yaml (~> 1.0.0)
+     css_parser (1.3.5)
+       addressable
+     database_cleaner (1.2.0)
+     debug_inspector (0.0.2)
+-    debugger (1.6.3)
++    debugger (1.6.6)
+       columnize (>= 0.3.1)
+       debugger-linecache (~> 1.2.0)
+-      debugger-ruby_core_source (~> 1.2.4)
++      debugger-ruby_core_source (~> 1.3.2)
+     debugger-linecache (1.2.0)
+-    debugger-ruby_core_source (1.2.4)
+-    decent_exposure (2.3.0)
+-    devise (3.1.1)
+-      bcrypt-ruby (~> 3.0)
++    debugger-ruby_core_source (1.3.2)
++    decent_exposure (2.3.1)
++    devise (3.2.4)
++      bcrypt (~> 3.0)
+       orm_adapter (~> 0.1)
+       railties (>= 3.2.6, < 5)
+       thread_safe (~> 0.1)
+       warden (~> 1.2.3)
+-    diff-lcs (1.2.4)
+-    dotenv (0.9.0)
++    diff-lcs (1.2.5)
++    docile (1.1.3)
++    dotenv (0.10.0)
+     email_spec (1.5.0)
+       launchy (~> 2.1)
+       mail (~> 2.2)
+     erubis (2.7.0)
+     execjs (2.0.2)
+-    fabrication (2.8.1)
++    fabrication (2.11.0)
+     faraday (0.8.9)
+       multipart-post (~> 1.2.0)
+     faraday_middleware (0.9.0)
+@@ -113,14 +114,14 @@ GEM
+       thor (>= 0.13.6)
+     gitlab (3.0.0)
+       httparty
+-    haml (4.0.3)
++    haml (4.0.5)
+       tilt
+     happymapper (0.4.1)
+       libxml-ruby (~> 2.0)
+     hashie (2.0.5)
+-    highline (1.6.19)
++    highline (1.6.21)
+     hike (1.2.3)
+-    hipchat (0.12.0)
++    hipchat (1.1.0)
+       httparty
+     hoi (0.0.6)
+       httparty (> 0.6.0)
+@@ -129,27 +130,25 @@ GEM
+       activesupport
+       builder
+     htmlentities (4.3.1)
+-    httparty (0.12.0)
++    httparty (0.13.0)
+       json (~> 1.8)
+       multi_xml (>= 0.5.2)
+-    httpauth (0.2.0)
+     i18n (0.6.9)
+-    jira-ruby (0.1.2)
++    jira-ruby (0.1.8)
+       activesupport
+       oauth
+-      railties
+     journey (1.0.4)
+     jquery-rails (2.1.4)
+       railties (>= 3.0, < 5.0)
+       thor (>= 0.14, < 2.0)
+     json (1.8.1)
+-    jwt (0.1.8)
++    jwt (0.1.11)
+       multi_json (>= 1.5)
+-    kaminari (0.14.1)
++    kaminari (0.15.1)
+       actionpack (>= 3.0.0)
+       activesupport (>= 3.0.0)
+-    kgio (2.8.1)
+-    launchy (2.3.0)
++    kgio (2.9.2)
++    launchy (2.4.2)
+       addressable (~> 2.3)
+     libv8 (3.16.14.3)
+     libxml-ruby (2.7.0)
+@@ -168,13 +167,13 @@ GEM
+     method_source (0.8.2)
+     mime-types (1.25.1)
+     mini_portile (0.5.3)
+-    mongoid (3.1.5)
++    mongoid (3.1.6)
+       activemodel (~> 3.2)
+       moped (~> 1.4)
+       origin (~> 1.0)
+       tzinfo (~> 0.3.29)
+-    mongoid-rspec (1.9.0)
+-      mongoid (>= 3.0.1)
++    mongoid-rspec (1.11.0)
++      mongoid (~> 3.1.6)
+       rake
+       rspec (>= 2.14)
+     mongoid_rails_migrations (1.0.1)
+@@ -182,7 +181,7 @@ GEM
+       bundler (>= 1.0.0)
+       rails (>= 3.2.0)
+       railties (>= 3.2.0)
+-    moped (1.5.1)
++    moped (1.5.2)
+     multi_json (1.9.2)
+     multi_xml (0.5.5)
+     multipart-post (1.2.0)
+@@ -190,33 +189,35 @@ GEM
+       net-ssh (>= 2.6.5)
+     net-sftp (2.1.2)
+       net-ssh (>= 2.6.5)
+-    net-ssh (2.7.0)
++    net-ssh (2.8.0)
+     net-ssh-gateway (1.2.0)
+       net-ssh (>= 2.6.5)
+     nokogiri (1.6.1)
+       mini_portile (~> 0.5.0)
+-    nokogiri-happymapper (0.5.8)
++    nokogiri-happymapper (0.5.9)
+       nokogiri (~> 1.5)
+     oauth (0.4.7)
+-    oauth2 (0.8.1)
+-      faraday (~> 0.8)
+-      httpauth (~> 0.1)
+-      jwt (~> 0.1.4)
+-      multi_json (~> 1.0)
++    oauth2 (0.9.3)
++      faraday (>= 0.8, < 0.10)
++      jwt (~> 0.1.8)
++      multi_json (~> 1.3)
++      multi_xml (~> 0.5)
+       rack (~> 1.2)
+-    octokit (2.7.1)
++    octokit (2.7.2)
+       sawyer (~> 0.5.2)
+-    omniauth (1.1.4)
++    omniauth (1.2.1)
+       hashie (>= 1.2, < 3)
+-      rack
++      rack (~> 1.0)
+     omniauth-github (1.1.1)
+       omniauth (~> 1.0)
+       omniauth-oauth2 (~> 1.1)
+-    omniauth-oauth2 (1.1.1)
+-      oauth2 (~> 0.8.0)
+-      omniauth (~> 1.0)
++    omniauth-oauth2 (1.1.2)
++      faraday (>= 0.8, < 0.10)
++      multi_json (~> 1.3)
++      oauth2 (~> 0.9.3)
++      omniauth (~> 1.2)
+     origin (1.1.0)
+-    orm_adapter (0.4.0)
++    orm_adapter (0.5.0)
+     oruen_redmine_client (0.0.1)
+       activeresource (>= 2.3.0)
+     pivotal-tracker (0.5.12)
+@@ -229,19 +230,20 @@ GEM
+       nokogiri-happymapper (>= 0.5.4)
+       rest-client (~> 1.6.0)
+       rest-client (~> 1.6.0)
+-    pjax_rails (0.3.4)
++    pjax_rails (0.4.0)
+       jquery-rails
++      railties (>= 3.2, < 5.0)
+     polyglot (0.3.4)
+-    premailer (1.7.3)
+-      css_parser (>= 1.1.9)
++    premailer (1.8.2)
++      css_parser (>= 1.3.5)
+       htmlentities (>= 4.0.0)
+-    pry (0.9.12.2)
+-      coderay (~> 1.0.5)
++    pry (0.9.12.6)
++      coderay (~> 1.0)
+       method_source (~> 0.8)
+       slop (~> 3.4)
+     pry-rails (0.3.2)
+       pry (>= 0.9.10)
+-    puma (2.6.0)
++    puma (2.8.1)
+       rack (>= 1.1, < 2.0)
+     quiet_assets (1.0.2)
+       railties (>= 3.1, < 5.0)
+@@ -250,7 +252,7 @@ GEM
+       rack (>= 0.4)
+     rack-contrib (1.1.0)
+       rack (>= 0.9.1)
+-    rack-ssl (1.3.3)
++    rack-ssl (1.3.4)
+       rack
+     rack-ssl-enforcer (0.2.6)
+     rack-test (0.6.2)
+@@ -263,7 +265,7 @@ GEM
+       activesupport (= 3.2.17)
+       bundler (~> 1.0)
+       railties (= 3.2.17)
+-    rails_autolink (1.1.4)
++    rails_autolink (1.1.5)
+       rails (> 3.1)
+     railties (3.2.17)
+       actionpack (= 3.2.17)
+@@ -272,8 +274,8 @@ GEM
+       rake (>= 0.8.7)
+       rdoc (~> 3.4)
+       thor (>= 0.14.6, < 2.0)
+-    raindrops (0.12.0)
+-    rake (10.1.1)
++    raindrops (0.13.0)
++    rake (10.2.2)
+     rbx-require-relative (0.0.9)
+     rdoc (3.12.2)
+       json (~> 1.4)
+@@ -285,12 +287,13 @@ GEM
+       rspec-core (~> 2.14.0)
+       rspec-expectations (~> 2.14.0)
+       rspec-mocks (~> 2.14.0)
+-    rspec-core (2.14.6)
+-    rspec-expectations (2.14.3)
++    rspec-core (2.14.8)
++    rspec-expectations (2.14.5)
+       diff-lcs (>= 1.1.3, < 2.0)
+-    rspec-mocks (2.14.4)
+-    rspec-rails (2.14.0)
++    rspec-mocks (2.14.6)
++    rspec-rails (2.14.2)
+       actionpack (>= 3.0)
++      activemodel (>= 3.0)
+       activesupport (>= 3.0)
+       railties (>= 3.0)
+       rspec-core (~> 2.14.0)
+@@ -306,61 +309,65 @@ GEM
+     rushover (0.3.0)
+       json
+       rest-client
+-    safe_yaml (0.9.7)
+-    sawyer (0.5.3)
++    rvm-capistrano (1.5.1)
++      capistrano (~> 2.15.4)
++    safe_yaml (1.0.1)
++    sawyer (0.5.4)
+       addressable (~> 2.3.5)
+       faraday (~> 0.8, < 0.10)
+     simple_oauth (0.2.0)
+-    simplecov (0.7.1)
+-      multi_json (~> 1.0)
+-      simplecov-html (~> 0.7.1)
+-    simplecov-html (0.7.1)
+-    slop (3.4.6)
++    simplecov (0.8.2)
++      docile (~> 1.1.0)
++      multi_json
++      simplecov-html (~> 0.8.0)
++    simplecov-html (0.8.0)
++    slop (3.5.0)
+     sprockets (2.2.2)
+       hike (~> 1.2)
+       multi_json (~> 1.0)
+       rack (~> 1.0)
+       tilt (~> 1.1, != 1.3.0)
+-    strong_parameters (0.2.1)
++    strong_parameters (0.2.3)
+       actionpack (~> 3.0)
+       activemodel (~> 3.0)
++      activesupport (~> 3.0)
+       railties (~> 3.0)
+-    term-ansicolor (1.2.2)
+-      tins (~> 0.8)
+-    therubyracer (0.12.0)
++    term-ansicolor (1.3.0)
++      tins (~> 1.0)
++    therubyracer (0.12.1)
+       libv8 (~> 3.16.14.0)
+       ref
+-    thor (0.18.1)
+-    thread_safe (0.1.3)
+-      atomic
++    thor (0.19.1)
++    thread_safe (0.3.1)
++      atomic (>= 1.1.7, < 2)
+     tilt (1.4.1)
+-    timecop (0.6.3)
+-    tins (0.12.0)
++    timecop (0.7.1)
++    tins (1.0.1)
+     treetop (1.4.15)
+       polyglot
+       polyglot (>= 0.3.1)
+-    turbo-sprockets-rails3 (0.3.10)
++    turbo-sprockets-rails3 (0.3.11)
+       railties (> 3.2.8, < 4.0.0)
+-      sprockets (>= 2.0.0)
+-    tzinfo (0.3.38)
+-    uglifier (2.2.1)
++      sprockets (>= 2.2.0)
++    tzinfo (0.3.39)
++    uglifier (2.5.0)
+       execjs (>= 0.3.0)
+-      multi_json (~> 1.0, >= 1.0.2)
+-    underscore-rails (1.5.2)
+-    unicorn (4.6.3)
++      json (>= 1.8.0)
++    underscore-rails (1.6.0)
++    unicorn (4.8.2)
+       kgio (~> 2.6)
+       rack
+       raindrops (~> 0.7)
+-    useragent (0.8.3)
++    useragent (0.10.0)
+     warden (1.2.3)
+       rack (>= 1.0)
+-    webmock (1.15.0)
++    webmock (1.17.4)
+       addressable (>= 2.2.7)
+       crack (>= 0.3.2)
+-    xmpp4r (0.5.5)
++    xmpp4r (0.5.6)
+     xpath (2.0.0)
+       nokogiri (~> 1.3)
+-    yajl-ruby (1.1.0)
++    yajl-ruby (1.2.0)
+ 
+ PLATFORMS
+   ruby
+@@ -419,6 +426,7 @@ DEPENDENCIES
+   ruby-debug
+   ruby-fogbugz
+   rushover
++  rvm-capistrano
+   strong_parameters
+   therubyracer
+   timecop
+diff --git a/config/config.example.yml b/config/config.example.yml
+index ebd97a043..f2a248992 100644
+--- a/config/config.example.yml
++++ b/config/config.example.yml
+@@ -79,6 +79,8 @@ deployment:
+   deploy_to: /var/www/apps/errbit
+   # setup path to unicorn pids folder (or deploy_to/shared/pids will be used)
+   # pids: /var/www/apps/errbit/shared/pids
++  # Configure a specific rvm ruby/gemset on the deploy target
++  #rvm_ruby: ruby-1.9.3-p194@errbit
+ 
+ # GitHub OAuth configuration
+ # If you want to allow authentication via GitHub, you will need to register
+diff --git a/config/deploy.example.rb b/config/deploy.example.rb
+index 306d0cefb..0ca43bafb 100644
+--- a/config/deploy.example.rb
++++ b/config/deploy.example.rb
+@@ -14,6 +14,12 @@
+ set :application, "errbit"
+ set :repository,  config['repository']
+ 
++unless config['rvm_ruby'].empty?
++  set :rvm_ruby_string, config['rvm_ruby']
++  
++  require "rvm/capistrano"
++end
++
+ role :web, config['hosts']['web']
+ role :app, config['hosts']['app']
+ role :db,  config['hosts']['db'], :primary => true
+
+From 27b1e5647a99336636a1a374d961718d0d57c66c Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Wed, 17 Oct 2012 11:55:20 -0700
+Subject: [PATCH 03/67] Change comments to show name instead of email
+
+---
+ app/models/user.rb                  | 4 ++++
+ app/views/problems/_table.html.haml | 2 +-
+ app/views/problems/show.html.haml   | 2 +-
+ 3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/app/models/user.rb b/app/models/user.rb
+index 15d8de18b..0949884e3 100644
+--- a/app/models/user.rb
++++ b/app/models/user.rb
+@@ -48,6 +48,10 @@ class User
+     validates_presence_of :username
+   end
+ 
++  def byname
++    Errbit::Config.user_has_username ? username : name
++  end
++
+   def watchers
+     apps.map(&:watchers).flatten.select {|w| w.user_id.to_s == id.to_s}
+   end
+diff --git a/app/views/problems/_table.html.haml b/app/views/problems/_table.html.haml
+index 37a62250a..7621fa0c1 100644
+--- a/app/views/problems/_table.html.haml
++++ b/app/views/problems/_table.html.haml
+@@ -31,7 +31,7 @@
+               %br
+               .inline_comment
+                 - if comment.user
+-                  %em.commenter= (Errbit::Config.user_has_username ? comment.user.username : comment.user.email).to_s << ":"
++                  %em.commenter= comment.user.byname.to_s << ":"
+                 %em= truncate(comment.body, :length => 100, :separator => ' ')
+           %td.latest #{time_ago_in_words(problem.last_notice_at)} ago
+           %td.deploy= problem.last_deploy_at ? problem.last_deploy_at.to_s(:micro) : 'n/a'
+diff --git a/app/views/problems/show.html.haml b/app/views/problems/show.html.haml
+index 3f1cf39e6..27256bbe6 100644
+--- a/app/views/problems/show.html.haml
++++ b/app/views/problems/show.html.haml
+@@ -35,7 +35,7 @@
+                   = gravatar_tag comment.user.email, :s => 24
+                 %span.comment-info
+                   = time_ago_in_words(comment.created_at, true) << " ago by "
+-                  = link_to comment.user.email, comment.user
++                  = link_to comment.user.byname, comment.user
+               - else
+                 %span.comment-info
+                   = time_ago_in_words(comment.created_at, true) << " ago by [Unknown User]"
+
+From 71219bcd98076ba409074aa44f70c873e5aca103 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan.phillips@gmail.com>
+Date: Mon, 11 Mar 2013 10:42:51 -0700
+Subject: [PATCH 04/67] Change resolve button display when resolved
+
+Conflicts:
+	app/views/problems/show.html.haml
+---
+ app/views/problems/show.html.haml | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/app/views/problems/show.html.haml b/app/views/problems/show.html.haml
+index 27256bbe6..f3b18978b 100644
+--- a/app/views/problems/show.html.haml
++++ b/app/views/problems/show.html.haml
+@@ -15,6 +15,8 @@
+   - if problem.unresolved?
+     %span= link_to 'resolve', [:resolve, app, problem], :method => :put,
+       :data => { :confirm => problem_confirm('resolve_one') }, :class => 'resolve'
++  - else
++      %strong{ :style => "color:red" } resolved!
+   - if current_user.authentication_token
+     %span= link_to 'iCal', polymorphic_path([app, problem], :format => "ics",
+       :auth_token => current_user.authentication_token), :class => "calendar_link"
+
+From c5924b78b7a8a49e62219ec0023d23e8b3a1b38f Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Fri, 4 Apr 2014 15:02:19 -0700
+Subject: [PATCH 05/67] Add devise secret_key line
+
+---
+ config/initializers/devise.rb | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/config/initializers/devise.rb b/config/initializers/devise.rb
+index 5095bf25c..408858396 100644
+--- a/config/initializers/devise.rb
++++ b/config/initializers/devise.rb
+@@ -87,6 +87,7 @@
+ 
+   # Setup a pepper to generate the encrypted password.
+   config.pepper = "425f10f555c1a4718aff3370ef9dd2d97a21622beb0400fde6b52177375ddcbe37a2dac6af9bca835c988e00c32887ee940ba111a78eab48234d8799936d36b9"
++  config.secret_key = '84986643ecd0ab16ba18ca1c7ccd8578dee299bfc4f3d166f18744554443b1eb21aadf24cd55a92f75a22fec32bf2f975f3c22044844a726b88acbb9b9ea60d6'
+ 
+   # ==> Configuration for :confirmable
+   # A period that the user is allowed to access the website even without
+
+From 34261222ab63e1fc7bd30fbacb2a3dbe10aceab8 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Fri, 4 Apr 2014 15:21:22 -0700
+Subject: [PATCH 06/67] Fix haml indentation
+
+---
+ app/views/problems/show.html.haml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/views/problems/show.html.haml b/app/views/problems/show.html.haml
+index f3b18978b..aa78acc7f 100644
+--- a/app/views/problems/show.html.haml
++++ b/app/views/problems/show.html.haml
+@@ -16,7 +16,7 @@
+     %span= link_to 'resolve', [:resolve, app, problem], :method => :put,
+       :data => { :confirm => problem_confirm('resolve_one') }, :class => 'resolve'
+   - else
+-      %strong{ :style => "color:red" } resolved!
++    %strong{ :style => "color:red" } resolved!
+   - if current_user.authentication_token
+     %span= link_to 'iCal', polymorphic_path([app, problem], :format => "ics",
+       :auth_token => current_user.authentication_token), :class => "calendar_link"
+
+From b43f0b4cb9525824103060b3771fb3881b83be56 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Mon, 7 Apr 2014 09:17:51 -0700
+Subject: [PATCH 07/67] Update regenerate_fingerprints task to work with
+ updated fingerprinting
+
+---
+ lib/tasks/errbit/database.rake | 24 +++---------------------
+ 1 file changed, 3 insertions(+), 21 deletions(-)
+
+diff --git a/lib/tasks/errbit/database.rake b/lib/tasks/errbit/database.rake
+index 940a7d19b..07764961d 100644
+--- a/lib/tasks/errbit/database.rake
++++ b/lib/tasks/errbit/database.rake
+@@ -27,30 +27,12 @@ namespace :errbit do
+ 
+     desc "Regenerate fingerprints"
+     task :regenerate_fingerprints => :environment do
+-
+-      def normalize_backtrace(backtrace)
+-        backtrace[0...3].map do |trace|
+-          trace.merge 'method' => trace['method'].to_s.gsub(/[0-9_]{10,}+/, "__FRAGMENT__")
+-        end
+-      end
+-
+-      def fingerprint(source)
+-        Digest::SHA1.hexdigest(source.to_s)
+-      end
+-
+       puts "Regenerating Err fingerprints"
+       Err.create_indexes
+       Err.all.each do |err|
+-        next if err.notices.count == 0
+-        source = {
+-          :backtrace => normalize_backtrace(err.notices.first.backtrace).to_s,
+-          :error_class => err.error_class,
+-          :component => err.component,
+-          :action => err.action,
+-          :environment => err.environment,
+-          :api_key => err.app.api_key
+-        }
+-        err.update_attributes(:fingerprint => fingerprint(source))
++        next if err.notices.count == 0 || err.app.nil?
++        fingerprint ||= ErrorReport.fingerprint_strategy.generate(err.notices.first, err.app.api_key)
++        err.update_attributes(:fingerprint => fingerprint)
+       end
+     end
+ 
+
+From ca121f41587951c3c68067b640ead0d24f790f89 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Mon, 7 Apr 2014 09:53:29 -0700
+Subject: [PATCH 08/67] Filter out some additional unique data from notices
+ that should otherwise be grouped
+
+---
+ app/models/fingerprint.rb | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/app/models/fingerprint.rb b/app/models/fingerprint.rb
+index 66001c554..926a08442 100644
+--- a/app/models/fingerprint.rb
++++ b/app/models/fingerprint.rb
+@@ -32,10 +32,23 @@ def file_or_message
+     @file_or_message ||= unified_message + notice.backtrace.fingerprint
+   end
+ 
+-  # filter memory addresses out of object strings
+-  # example: "#<Object:0x007fa2b33d9458>" becomes "#<Object>"
+   def unified_message
+-    notice.message.gsub(/(#<.+?):[0-9a-f]x[0-9a-f]+(>)/, '\1\2')
++    notice.message.dup.tap do |message|
++      # filter memory addresses out of object strings
++      # example: "#<Object:0x007fa2b33d9458>" becomes "#<Object>"
++      message.gsub!(/(#<.+?):[0-9a-f]x[0-9a-f]+(>)/, '\1\2')
++
++      # Remove SQL statements from ActiveRecord::StatementInvalid messages
++      if notice.error_class == 'ActiveRecord::StatementInvalid'
++        message.gsub!(/: (?:UPDATE|SELECT|DELETE) .+\Z/, '\1')
++      end
++      
++      # Remove unique record ids
++      # example: "Couldn't find ItemTrait with ID=13323979 for Item with ID=157989381" becomes "Couldn't find ItemTrait for Item"
++      if notice.error_class == 'ActiveRecord::RecordNotFound'
++        message.gsub!(/ with ID=\S+/, '')
++      end
++    end
+   end
+ 
+ end
+
+From bcd46fdbbf7d9458599aa1507fffd857e0e36d3a Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Mon, 7 Apr 2014 09:53:48 -0700
+Subject: [PATCH 09/67] Migrate notices to new Errs when updating fingerprints
+
+---
+ lib/tasks/errbit/database.rake | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/lib/tasks/errbit/database.rake b/lib/tasks/errbit/database.rake
+index 07764961d..f0e0be096 100644
+--- a/lib/tasks/errbit/database.rake
++++ b/lib/tasks/errbit/database.rake
+@@ -31,8 +31,22 @@ namespace :errbit do
+       Err.create_indexes
+       Err.all.each do |err|
+         next if err.notices.count == 0 || err.app.nil?
+-        fingerprint ||= ErrorReport.fingerprint_strategy.generate(err.notices.first, err.app.api_key)
+-        err.update_attributes(:fingerprint => fingerprint)
++        
++        fingerprint = ErrorReport.fingerprint_strategy.generate(err.notices.first, err.app.api_key)
++        next if fingerprint == err.fingerprint
++
++        # Migrate notices to the new err and remove the old err
++        new_err = err.app.find_or_create_err!(
++          :error_class => err.error_class,
++          :environment => err.environment,
++          :fingerprint => fingerprint
++        )
++        
++        err.notices.each do |notice|
++          notice.update_attribute(:err_id => new_err.id)
++        end
++        
++        err.destroy
+       end
+     end
+ 
+
+From 24b91981a702829c04842797d24a9b06333f3c64 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Mon, 7 Apr 2014 10:03:24 -0700
+Subject: [PATCH 10/67] Remove empty problems after updating fingerprints
+
+---
+ lib/tasks/errbit/database.rake | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/lib/tasks/errbit/database.rake b/lib/tasks/errbit/database.rake
+index f0e0be096..dc9e974e2 100644
+--- a/lib/tasks/errbit/database.rake
++++ b/lib/tasks/errbit/database.rake
+@@ -37,13 +37,18 @@ namespace :errbit do
+ 
+         # Migrate notices to the new err and remove the old err
+         new_err = err.app.find_or_create_err!(
+-          :error_class => err.error_class,
+-          :environment => err.environment,
++          :error_class => err.problem.error_class,
++          :environment => err.problem.environment,
+           :fingerprint => fingerprint
+         )
+         
+         err.notices.each do |notice|
+-          notice.update_attribute(:err_id => new_err.id)
++          notice.update_attribute(:err_id, new_err.id)
++        end
++
++        err.problem.update_attributes(:notices_count => err.problem.notices.count)
++        if err.problem.notices_count == 0
++          err.problem.destroy
+         end
+         
+         err.destroy
+
+From 6d5ec521c307a97ee5ee8b4bc621597b3cdbd7ab Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Mon, 21 Apr 2014 09:49:12 -0700
+Subject: [PATCH 11/67] Ignore long numbers in exception messages for grouping
+ purposes
+
+---
+ app/models/fingerprint.rb | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/app/models/fingerprint.rb b/app/models/fingerprint.rb
+index 926a08442..b2b843a12 100644
+--- a/app/models/fingerprint.rb
++++ b/app/models/fingerprint.rb
+@@ -48,6 +48,9 @@ def unified_message
+       if notice.error_class == 'ActiveRecord::RecordNotFound'
+         message.gsub!(/ with ID=\S+/, '')
+       end
++      
++      # Ignore any long number (PIDs, record IDs, etc)
++      message.gsub!(/\d{3,}/, '')
+     end
+   end
+ 
+
+From 3d918db60c7411bc30e813f1c7f5e333b385f83c Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Tue, 26 Aug 2014 14:12:54 -0700
+Subject: [PATCH 12/67] Update bundle
+
+---
+ Gemfile.lock | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/Gemfile.lock b/Gemfile.lock
+index e32ed3f62..6bf93f508 100644
+--- a/Gemfile.lock
++++ b/Gemfile.lock
+@@ -291,6 +291,8 @@ GEM
+     rushover (0.3.0)
+       json
+       rest-client
++    rvm-capistrano (1.5.3)
++      capistrano (~> 2.15.4)
+     safe_yaml (0.9.7)
+     sawyer (0.5.3)
+       addressable (~> 2.3.5)
+@@ -402,6 +404,7 @@ DEPENDENCIES
+   rspec-rails
+   ruby-fogbugz
+   rushover
++  rvm-capistrano
+   strong_parameters
+   therubyracer
+   timecop
+
+From 7bd28b981e74c73a7714094cb70328ea92effd37 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Mon, 18 May 2015 10:36:34 -0700
+Subject: [PATCH 13/67] Use rvm and passenger with capistrano
+
+---
+ Capfile      |  3 ++-
+ Gemfile      |  9 +++++----
+ Gemfile.lock | 11 +++++++----
+ 3 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/Capfile b/Capfile
+index c963c3a5f..8d0846973 100644
+--- a/Capfile
++++ b/Capfile
+@@ -1,8 +1,9 @@
+ require 'capistrano/setup'
+ require 'capistrano/deploy'
+ 
+-require 'capistrano/rbenv' if ENV['rbenv']
++require 'capistrano/rvm'
+ require 'capistrano/bundler'
++require 'capistrano/passenger'
+ require 'capistrano/rails/assets'
+ 
+ Dir.glob('lib/capistrano/tasks/*.rake').each { |r| import r }
+diff --git a/Gemfile b/Gemfile
+index 5032e8fbe..57ca33469 100644
+--- a/Gemfile
++++ b/Gemfile
+@@ -66,10 +66,11 @@ group :development, :test do
+ end
+ 
+ group :development do
+-  gem 'capistrano',         require: false
+-  gem 'capistrano-bundler', require: false
+-  gem 'capistrano-rails',   require: false
+-  gem 'capistrano-rbenv',   require: false
++  gem 'capistrano',           require: false
++  gem 'capistrano-bundler',   require: false
++  gem 'capistrano-passenger', require: false
++  gem 'capistrano-rails',     require: false
++  gem 'capistrano-rvm',       require: false
+ 
+   # better errors
+   gem 'better_errors'
+diff --git a/Gemfile.lock b/Gemfile.lock
+index 8ffe594fb..6b8532a2f 100644
+--- a/Gemfile.lock
++++ b/Gemfile.lock
+@@ -58,12 +58,14 @@ GEM
+     capistrano-bundler (1.1.4)
+       capistrano (~> 3.1)
+       sshkit (~> 1.2)
++    capistrano-passenger (0.0.5)
++      capistrano (~> 3.0)
+     capistrano-rails (1.1.2)
+       capistrano (~> 3.1)
+       capistrano-bundler (~> 1.1)
+-    capistrano-rbenv (2.0.3)
+-      capistrano (~> 3.1)
+-      sshkit (~> 1.3)
++    capistrano-rvm (0.1.2)
++      capistrano (~> 3.0)
++      sshkit (~> 1.2)
+     capybara (2.4.4)
+       mime-types (>= 1.16)
+       nokogiri (>= 1.3.3)
+@@ -392,8 +394,9 @@ DEPENDENCIES
+   campy
+   capistrano
+   capistrano-bundler
++  capistrano-passenger
+   capistrano-rails
+-  capistrano-rbenv
++  capistrano-rvm
+   capybara
+   coffee-rails
+   coveralls
+
+From 617f92174317ce9f7b64b1e944a1deac0788e4ed Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan.phillips@gmail.com>
+Date: Wed, 20 May 2015 09:12:04 -0700
+Subject: [PATCH 14/67] Add task to clear old problems
+
+---
+ app/interactors/old_problem_clearer.rb | 32 ++++++++++++++++++++++++++
+ lib/tasks/errbit/database.rake         |  6 +++++
+ 2 files changed, 38 insertions(+)
+ create mode 100644 app/interactors/old_problem_clearer.rb
+
+diff --git a/app/interactors/old_problem_clearer.rb b/app/interactors/old_problem_clearer.rb
+new file mode 100644
+index 000000000..b4c6469a7
+--- /dev/null
++++ b/app/interactors/old_problem_clearer.rb
+@@ -0,0 +1,32 @@
++require 'problem_destroy'
++
++class OldProblemClearer
++
++  ##
++  # Clear all problems that haven't received a notice in the last month
++  #
++  def execute
++    nb_problem_resolved.tap { |nb|
++      if nb > 0
++        criteria.each do |problem|
++          ProblemDestroy.new(problem).execute
++        end
++        repair_database
++      end
++    }
++  end
++
++  private
++
++  def nb_problem_resolved
++    @count ||= criteria.count
++  end
++
++  def criteria
++    @criteria = Problem.where(:last_notice_at.lte => 1.month.ago)
++  end
++
++  def repair_database
++    Mongoid.default_session.command :repairDatabase => 1
++  end
++end
+diff --git a/lib/tasks/errbit/database.rake b/lib/tasks/errbit/database.rake
+index dc9e974e2..dfcd7f11b 100644
+--- a/lib/tasks/errbit/database.rake
++++ b/lib/tasks/errbit/database.rake
+@@ -25,6 +25,12 @@ namespace :errbit do
+       puts "=== Cleared #{ResolvedProblemClearer.new.execute} resolved errors from the database."
+     end
+ 
++    desc "Delete old errors from the database."
++    task :clear_old => :environment do
++      require 'old_problem_clearer'
++      puts "=== Cleared #{OldProblemClearer.new.execute} old errors from the database."
++    end
++
+     desc "Regenerate fingerprints"
+     task :regenerate_fingerprints => :environment do
+       puts "Regenerating Err fingerprints"
+
+From 0c2103376adc0843f236efcb84109d2434270f6c Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Thu, 21 May 2015 10:48:05 -0700
+Subject: [PATCH 15/67] Use asset pipeline logo in email
+
+---
+ app/views/layouts/mailer.html.haml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/views/layouts/mailer.html.haml b/app/views/layouts/mailer.html.haml
+index 4f36183e1..3299ee486 100644
+--- a/app/views/layouts/mailer.html.haml
++++ b/app/views/layouts/mailer.html.haml
+@@ -10,7 +10,7 @@
+         %tbody
+           %tr
+             %td.header
+-              = link_to image_tag(URI.join(root_url,"assets/images/logo.png").to_s, :alt => "Errbit"), root_url
++              = link_to image_tag(asset_path('images/logo.png'), :alt => "Errbit"), root_url
+ 
+           = yield
+ 
+
+From 77419e15317705f974010d31a0b1c26d0b3bfa3a Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Thu, 21 May 2015 11:11:28 -0700
+Subject: [PATCH 16/67] Fix asset pipeline call in mail
+
+---
+ app/views/layouts/mailer.html.haml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/views/layouts/mailer.html.haml b/app/views/layouts/mailer.html.haml
+index 3299ee486..0a96e3414 100644
+--- a/app/views/layouts/mailer.html.haml
++++ b/app/views/layouts/mailer.html.haml
+@@ -10,7 +10,7 @@
+         %tbody
+           %tr
+             %td.header
+-              = link_to image_tag(asset_path('images/logo.png'), :alt => "Errbit"), root_url
++              = link_to image_tag(URI.join(root_url, ActionController::Base.helpers.asset_path("images/logo.png")).to_s, :alt => "Errbit"), root_url
+ 
+           = yield
+ 
+
+From f0af84e1608faee674ceb96ff786ffe03a5e8a83 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Thu, 4 Jun 2015 09:45:21 -0700
+Subject: [PATCH 17/67] Add time range params to stats action; include errors
+ count
+
+---
+ app/controllers/api/v1/stats_controller.rb | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/app/controllers/api/v1/stats_controller.rb b/app/controllers/api/v1/stats_controller.rb
+index 67f7a92f1..7fa87076e 100644
+--- a/app/controllers/api/v1/stats_controller.rb
++++ b/app/controllers/api/v1/stats_controller.rb
+@@ -6,15 +6,22 @@ class Api::V1::StatsController < ApplicationController
+   before_action :require_api_key_or_authenticate_user!
+ 
+   def app
+-    if problem = @app.problems.order_by(:last_notice_at.desc).first
+-      @last_error_time = problem.last_notice_at
++    from, to = params.values_at(:from, :to)
++    
++    problems_scope = @app.problems
++    problems_scope = problems_scope.where(:first_notice_at.gte => from.to_i) if from
++    problems_scope = problems_scope.where(:last_notice_at.lte => to.to_i) if to
++    
++    last_error_time = if problem = problems_scope.order_by(:last_notice_at.desc).first
++      problem.last_notice_at
+     end
+ 
+     stats = {
+       :name => @app.name,
+       :id => @app.id,
+-      :last_error_time => @last_error_time,
+-      :unresolved_errors => @app.unresolved_count
++      :last_error_time => last_error_time,
++      :errors => problems_scope.count,
++      :unresolved_errors => problems_scope.unresolved.count
+     }
+ 
+     respond_to do |format|
+
+From d3f61fe7786b1d18528b5db924fdee228d8c6534 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Thu, 4 Jun 2015 11:35:40 -0700
+Subject: [PATCH 18/67] Add optional detailed (aka "slow") stats, e.g. notices
+ count
+
+---
+ app/controllers/api/v1/stats_controller.rb | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/app/controllers/api/v1/stats_controller.rb b/app/controllers/api/v1/stats_controller.rb
+index 7fa87076e..dacee22a3 100644
+--- a/app/controllers/api/v1/stats_controller.rb
++++ b/app/controllers/api/v1/stats_controller.rb
+@@ -23,6 +23,15 @@ def app
+       :errors => problems_scope.count,
+       :unresolved_errors => problems_scope.unresolved.count
+     }
++    
++    if params[:detailed]
++      errs_scope = Err.where(:problem_id.in => @app.problems.pluck(:id))
++      notices_scope = Notice.where(:err_id.in => errs_scope.pluck(:id))
++      notices_scope = notices_scope.where(:created_at.gte => from.to_i) if from
++      notices_scope = notices_scope.where(:created_at.lte => to.to_i) if to
++      
++      stats[:notices] = notices_scope.count
++    end
+ 
+     respond_to do |format|
+       format.any(:html, :json) { render :json => JSON.dump(stats) } # render JSON if no extension specified on path
+
+From 80f95f8ad6ccbffb56ca4e3b80fa5499dc8f1d50 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Fri, 5 Jun 2015 09:34:09 -0700
+Subject: [PATCH 19/67] Adjust time range on stats to filter on new problems
+
+---
+ app/controllers/api/v1/stats_controller.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/controllers/api/v1/stats_controller.rb b/app/controllers/api/v1/stats_controller.rb
+index dacee22a3..18cb29a63 100644
+--- a/app/controllers/api/v1/stats_controller.rb
++++ b/app/controllers/api/v1/stats_controller.rb
+@@ -10,7 +10,7 @@ def app
+     
+     problems_scope = @app.problems
+     problems_scope = problems_scope.where(:first_notice_at.gte => from.to_i) if from
+-    problems_scope = problems_scope.where(:last_notice_at.lte => to.to_i) if to
++    problems_scope = problems_scope.where(:first_notice_at.lte => to.to_i) if to
+     
+     last_error_time = if problem = problems_scope.order_by(:last_notice_at.desc).first
+       problem.last_notice_at
+
+From f3258d8da1caed70bd3cdd33faa55926e2fddbe6 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Fri, 5 Jun 2015 09:36:30 -0700
+Subject: [PATCH 20/67] Reduce range of detailed problems scope to speed up
+ query
+
+---
+ app/controllers/api/v1/stats_controller.rb | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/app/controllers/api/v1/stats_controller.rb b/app/controllers/api/v1/stats_controller.rb
+index 18cb29a63..ee3379ff9 100644
+--- a/app/controllers/api/v1/stats_controller.rb
++++ b/app/controllers/api/v1/stats_controller.rb
+@@ -25,7 +25,9 @@ def app
+     }
+     
+     if params[:detailed]
+-      errs_scope = Err.where(:problem_id.in => @app.problems.pluck(:id))
++      problems_scope = @app.problems
++      problems_scope = problems_scope.where(:last_notice_at.gte => from.to_i) if from
++      errs_scope = Err.where(:problem_id.in => problems_scope.pluck(:id))
+       notices_scope = Notice.where(:err_id.in => errs_scope.pluck(:id))
+       notices_scope = notices_scope.where(:created_at.gte => from.to_i) if from
+       notices_scope = notices_scope.where(:created_at.lte => to.to_i) if to
+
+From df305787b307c6794a8b035737f6eba1c0260c4e Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan.phillips@gmail.com>
+Date: Wed, 22 Jul 2015 14:14:50 -0700
+Subject: [PATCH 21/67] Allow access to problems API with API key
+
+---
+ app/controllers/api/v1/problems_controller.rb | 13 +++++++++++--
+ app/controllers/api/v1/stats_controller.rb    | 14 --------------
+ app/controllers/application_controller.rb     | 10 ++++++++++
+ 3 files changed, 21 insertions(+), 16 deletions(-)
+
+diff --git a/app/controllers/api/v1/problems_controller.rb b/app/controllers/api/v1/problems_controller.rb
+index 76f628296..296b6c895 100644
+--- a/app/controllers/api/v1/problems_controller.rb
++++ b/app/controllers/api/v1/problems_controller.rb
+@@ -1,11 +1,15 @@
+ class Api::V1::ProblemsController < ApplicationController
+   respond_to :json, :xml
++
++  skip_before_action :authenticate_user!
++  before_action :require_api_key_or_authenticate_user!
++
+   FIELDS = %w{_id app_id app_name environment message where first_notice_at last_notice_at resolved resolved_at notices_count}
+ 
+   def show
+     result = benchmark("[api/v1/problems_controller/show] query time") do
+       begin
+-        Problem.only(FIELDS).find(params[:id])
++        problems_scope.only(FIELDS).find(params[:id])
+       rescue Mongoid::Errors::DocumentNotFound
+         head :not_found
+         return false
+@@ -28,7 +32,7 @@ def index
+     end
+ 
+     results = benchmark("[api/v1/problems_controller/index] query time") do
+-      Problem.where(query).with(:consistency => :strong).only(FIELDS).to_a
++      problems_scope.where(query).with(:consistency => :strong).only(FIELDS).to_a
+     end
+ 
+     respond_to do |format|
+@@ -37,4 +41,9 @@ def index
+     end
+   end
+ 
++protected
++
++  def problems_scope
++    @app && @app.problems || Problem
++  end
+ end
+diff --git a/app/controllers/api/v1/stats_controller.rb b/app/controllers/api/v1/stats_controller.rb
+index ee3379ff9..32dc4d4b4 100644
+--- a/app/controllers/api/v1/stats_controller.rb
++++ b/app/controllers/api/v1/stats_controller.rb
+@@ -40,18 +40,4 @@ def app
+       format.xml  { render :xml  => stats }
+     end
+   end
+-
+-
+-  protected
+-
+-  def require_api_key_or_authenticate_user!
+-    if params[:api_key].present?
+-      if @app = App.where(:api_key => params[:api_key]).first
+-        return true
+-      end
+-    end
+-
+-    authenticate_user!
+-  end
+-
+ end
+diff --git a/app/controllers/application_controller.rb b/app/controllers/application_controller.rb
+index cd42cb33c..18c9675a0 100644
+--- a/app/controllers/application_controller.rb
++++ b/app/controllers/application_controller.rb
+@@ -37,6 +37,16 @@ def require_admin!
+     end
+   end
+ 
++  def require_api_key_or_authenticate_user!
++    if params[:api_key].present?
++      if @app = App.where(:api_key => params[:api_key]).first
++        return true
++      end
++    end
++
++    authenticate_user!
++  end
++
+   def redirect_to_root
+     redirect_to(root_path)
+   end
+
+From ad0cabd5b32914e0e7ed620782a375754e9b81fd Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan.phillips@gmail.com>
+Date: Wed, 22 Jul 2015 14:17:59 -0700
+Subject: [PATCH 22/67] Paginate API problems
+
+---
+ app/controllers/api/v1/problems_controller.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/controllers/api/v1/problems_controller.rb b/app/controllers/api/v1/problems_controller.rb
+index 296b6c895..1f5a091e5 100644
+--- a/app/controllers/api/v1/problems_controller.rb
++++ b/app/controllers/api/v1/problems_controller.rb
+@@ -32,7 +32,7 @@ def index
+     end
+ 
+     results = benchmark("[api/v1/problems_controller/index] query time") do
+-      problems_scope.where(query).with(:consistency => :strong).only(FIELDS).to_a
++      problems_scope.where(query).with(:consistency => :strong).only(FIELDS).page(params[:page]).per(20).to_a
+     end
+ 
+     respond_to do |format|
+
+From 6f34c3ebe4c5fd1e25db8a33f522edee5a88cd11 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan.phillips@gmail.com>
+Date: Wed, 22 Jul 2015 15:03:12 -0700
+Subject: [PATCH 23/67] Add filters for first_notice_at time range
+
+---
+ app/controllers/api/v1/problems_controller.rb | 22 +++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/app/controllers/api/v1/problems_controller.rb b/app/controllers/api/v1/problems_controller.rb
+index 1f5a091e5..965cbdfa9 100644
+--- a/app/controllers/api/v1/problems_controller.rb
++++ b/app/controllers/api/v1/problems_controller.rb
+@@ -31,6 +31,28 @@ def index
+       query = {:first_notice_at=>{"$lte"=>end_date}, "$or"=>[{:resolved_at=>nil}, {:resolved_at=>{"$gte"=>start_date}}]}
+     end
+ 
++    if params.key?(:started_after)
++      started_after_query = { "$gt" => Time.parse(params[:started_after]).utc }
++      if query[:first_notice_at]
++        query["$and"] = (Array.wrap(query.delete(:first_notice_at)) + [ started_after_query ]).map do |first_notice_at_query|
++          { first_notice_at: first_notice_at_query }
++        end
++      else
++        query[:first_notice_at] = started_after_query
++      end
++    end
++
++    if params.key?(:started_before)
++      started_before_query = { "$lt" => Time.parse(params[:started_before]).utc }
++      if query[:first_notice_at]
++        query["$and"] = (Array.wrap(query.delete(:first_notice_at)) + [ started_before_query ]).map do |first_notice_at_query|
++          { first_notice_at: first_notice_at_query }
++        end
++      else
++        query[:first_notice_at] = started_before_query
++      end
++    end
++
+     results = benchmark("[api/v1/problems_controller/index] query time") do
+       problems_scope.where(query).with(:consistency => :strong).only(FIELDS).page(params[:page]).per(20).to_a
+     end
+
+From 545049597c835015b091b413e7878d6b4504b07e Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Thu, 23 Jul 2015 17:02:52 -0700
+Subject: [PATCH 24/67] Don't update first_notice_at with invalid times
+
+---
+ app/interactors/problem_updater_cache.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/interactors/problem_updater_cache.rb b/app/interactors/problem_updater_cache.rb
+index 29891a8de..365dcfd27 100644
+--- a/app/interactors/problem_updater_cache.rb
++++ b/app/interactors/problem_updater_cache.rb
+@@ -39,7 +39,7 @@ def update_notices_cache
+     notice ||= @notice || first_notice
+ 
+     attrs = {}
+-    attrs[:first_notice_at] = first_notice.created_at if first_notice
++    attrs[:first_notice_at] = [ problem.first_notice_at, first_notice.created_at ].compact.min if first_notice
+     attrs[:last_notice_at] = last_notice.created_at if last_notice
+     attrs.merge!(
+       :message     => notice.message,
+
+From 8bfa9d9eef99ef32a2deb5cb3ae32f77087eb710 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Fri, 24 Jul 2015 09:07:35 -0700
+Subject: [PATCH 25/67] Include hosts in API response
+
+---
+ app/controllers/api/v1/problems_controller.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/controllers/api/v1/problems_controller.rb b/app/controllers/api/v1/problems_controller.rb
+index 965cbdfa9..1db940611 100644
+--- a/app/controllers/api/v1/problems_controller.rb
++++ b/app/controllers/api/v1/problems_controller.rb
+@@ -4,7 +4,7 @@ class Api::V1::ProblemsController < ApplicationController
+   skip_before_action :authenticate_user!
+   before_action :require_api_key_or_authenticate_user!
+ 
+-  FIELDS = %w{_id app_id app_name environment message where first_notice_at last_notice_at resolved resolved_at notices_count}
++  FIELDS = %w{_id app_id app_name environment hosts message where first_notice_at last_notice_at resolved resolved_at notices_count}
+ 
+   def show
+     result = benchmark("[api/v1/problems_controller/show] query time") do
+
+From a070729b2c529892696ec96f2a72fb07439a311d Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Fri, 24 Jul 2015 09:58:52 -0700
+Subject: [PATCH 26/67] Use server hostname, not host header, for Problem.hosts
+
+---
+ app/interactors/problem_updater_cache.rb                  | 2 +-
+ app/models/notice.rb                                      | 4 ++++
+ app/models/problem.rb                                     | 2 +-
+ db/migrate/20111102173347_cache_problem_statistics_fix.rb | 2 +-
+ spec/interactors/problem_updater_cache_spec.rb            | 6 +++---
+ spec/models/notice_spec.rb                                | 7 +++++++
+ 6 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/app/interactors/problem_updater_cache.rb b/app/interactors/problem_updater_cache.rb
+index 365dcfd27..78185e8b7 100644
+--- a/app/interactors/problem_updater_cache.rb
++++ b/app/interactors/problem_updater_cache.rb
+@@ -45,7 +45,7 @@ def update_notices_cache
+       :message     => notice.message,
+       :where       => notice.where,
+       :messages    => attribute_count(:message, messages),
+-      :hosts       => attribute_count(:host, hosts),
++      :hosts       => attribute_count(:hostname, hosts),
+       :user_agents => attribute_count(:user_agent_string, user_agents)
+     ) if notice
+     problem.update_attributes!(attrs)
+diff --git a/app/models/notice.rb b/app/models/notice.rb
+index 4cca6d8e7..c6912f655 100644
+--- a/app/models/notice.rb
++++ b/app/models/notice.rb
+@@ -74,6 +74,10 @@ def request
+   def url
+     request['url']
+   end
++  
++  def hostname
++    server_environment && server_environment["hostname"] || host
++  end
+ 
+   def host
+     uri = url && URI.parse(url)
+diff --git a/app/models/problem.rb b/app/models/problem.rb
+index 0049926e8..2513442d8 100644
+--- a/app/models/problem.rb
++++ b/app/models/problem.rb
+@@ -143,7 +143,7 @@ def cache_app_attributes
+   def remove_cached_notice_attributes(notice)
+     update_attributes!(
+       :messages    => attribute_count_descrease(:messages, notice.message),
+-      :hosts       => attribute_count_descrease(:hosts, notice.host),
++      :hosts       => attribute_count_descrease(:hosts, notice.hostname),
+       :user_agents => attribute_count_descrease(:user_agents, notice.user_agent_string)
+     )
+   end
+diff --git a/db/migrate/20111102173347_cache_problem_statistics_fix.rb b/db/migrate/20111102173347_cache_problem_statistics_fix.rb
+index 1f2b19b4d..9f13da8cf 100644
+--- a/db/migrate/20111102173347_cache_problem_statistics_fix.rb
++++ b/db/migrate/20111102173347_cache_problem_statistics_fix.rb
+@@ -6,7 +6,7 @@ def self.up
+       user_agents = {}
+       problem.notices.each do |notice|
+       	messages    = count_attribute(messages, notice.message)
+-        hosts       = count_attribute(hosts, notice.host)
++        hosts       = count_attribute(hosts, notice.hostname)
+         user_agents = count_attribute(user_agents, notice.user_agent_string)
+       end
+       problem.update_attributes(:messages => messages, :hosts => hosts, :user_agents => user_agents)
+diff --git a/spec/interactors/problem_updater_cache_spec.rb b/spec/interactors/problem_updater_cache_spec.rb
+index 5b561669d..ac85e24c4 100644
+--- a/spec/interactors/problem_updater_cache_spec.rb
++++ b/spec/interactors/problem_updater_cache_spec.rb
+@@ -44,7 +44,7 @@
+ 
+         it 'update stats hosts' do
+           expect(problem.hosts).to eq({
+-            Digest::MD5.hexdigest(notice.host) => {'value' => notice.host, 'count' => 1}
++            Digest::MD5.hexdigest(notice.hostname) => {'value' => notice.hostname, 'count' => 1}
+           })
+         end
+ 
+@@ -83,7 +83,7 @@
+ 
+         it 'update stats hosts' do
+           expect(problem.hosts).to eq({
+-            Digest::MD5.hexdigest(notice.host) => {'value' => notice.host, 'count' => 3}
++            Digest::MD5.hexdigest(notice.hostname) => {'value' => notice.hostname, 'count' => 3}
+           })
+         end
+ 
+@@ -131,7 +131,7 @@
+ 
+       it 'inc stats hosts' do
+         expect(problem.hosts).to eq({
+-          Digest::MD5.hexdigest(notice.host) => {'value' => notice.host, 'count' => 2}
++          Digest::MD5.hexdigest(notice.hostname) => {'value' => notice.hostname, 'count' => 2}
+         })
+       end
+ 
+diff --git a/spec/models/notice_spec.rb b/spec/models/notice_spec.rb
+index a3bacdb58..6720b646d 100644
+--- a/spec/models/notice_spec.rb
++++ b/spec/models/notice_spec.rb
+@@ -99,6 +99,13 @@
+     end
+   end
+ 
++  describe "hostname" do
++    it "returns hostname from server_environment" do
++      notice = Fabricate.build(:notice, :server_environment => {'hostname' => "server1.example.com"})
++      expect(notice.hostname).to eq 'server1.example.com'
++    end
++  end
++
+   describe "request" do
+     it "returns empty hash if not set" do
+       notice = Notice.new
+
+From 4e36f30433b6b4a26df5cfb24b7f282ba6bd972f Mon Sep 17 00:00:00 2001
+From: Patrick Koperwas <patrickkoperwas@gmail.com>
+Date: Wed, 27 Apr 2016 14:01:07 -0700
+Subject: [PATCH 27/67] Remove puma from capfile
+
+---
+ Capfile | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/Capfile b/Capfile
+index 4eeacea31..8d0846973 100644
+--- a/Capfile
++++ b/Capfile
+@@ -5,6 +5,5 @@ require 'capistrano/rvm'
+ require 'capistrano/bundler'
+ require 'capistrano/passenger'
+ require 'capistrano/rails/assets'
+-require 'capistrano/puma'
+ 
+ Dir.glob('lib/capistrano/tasks/*.rake').each { |r| import r }
+
+From 73fa59c85afda3e9fe7bc2f2a7332d643d6ba163 Mon Sep 17 00:00:00 2001
+From: Patrick Koperwas <patrickkoperwas@gmail.com>
+Date: Thu, 28 Apr 2016 09:30:22 -0700
+Subject: [PATCH 28/67] Get errbit 0.6.0 production ready
+
+---
+ .gitignore                            |  3 +-
+ app/assets/stylesheets/errbit.css.erb |  4 +-
+ config/deploy.rb                      | 64 +++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 4 deletions(-)
+ create mode 100644 config/deploy.rb
+
+diff --git a/.gitignore b/.gitignore
+index 430bb021c..001976c1b 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -5,9 +5,8 @@ log/*.log
+ tmp/**/*
+ tmp/*
+ config/config.yml
+-config/deploy.rb
+-config/deploy
+ config/mongoid.yml
++config/deploy
+ config/newrelic.yml
+ .rvmrc
+ .idea
+diff --git a/app/assets/stylesheets/errbit.css.erb b/app/assets/stylesheets/errbit.css.erb
+index 140d4631e..7f50f28e1 100644
+--- a/app/assets/stylesheets/errbit.css.erb
++++ b/app/assets/stylesheets/errbit.css.erb
+@@ -676,7 +676,7 @@ td.count, td.issue_link {
+ /* Err Tables */
+ table.errs td.app .name {
+   display: block;
+-  width: 150px;
++  width: 120px;
+   white-space: nowrap;
+   text-overflow: ellipsis;
+   overflow: hidden;
+@@ -688,7 +688,7 @@ table.errs td.app .environment {
+ table.errs td.message a {
+   display: block;
+   word-wrap: break-word;
+-  width: 440px;
++  width: 410px;
+   white-space: nowrap;
+   text-overflow: ellipsis;
+   overflow: hidden;
+diff --git a/config/deploy.rb b/config/deploy.rb
+new file mode 100644
+index 000000000..980ce953e
+--- /dev/null
++++ b/config/deploy.rb
+@@ -0,0 +1,64 @@
++# Deploy Config
++# =============
++#
++# Copy this file to config/deploy.rb and customize it as needed.
++# Then run `cap errbit:setup` to set up your server and finally
++# `cap deploy` whenever you would like to deploy Errbit. Refer
++# to ./docs/deployment/capistrano.md for more info
++
++# config valid only for current version of Capistrano
++lock '3.5.0'
++
++set :application, 'errbit'
++set :repo_url, 'https://github.com/bonanza-market/errbit.git'
++set :branch, ENV['branch'] || 'master'
++set :deploy_to, '/home/errbit'
++set :keep_releases, 3
++
++set :pty, true
++set :ssh_options, forward_agent: true
++
++set :linked_files, fetch(:linked_files, []) + %w(
++  .env
++)
++
++set :linked_dirs, fetch(:linked_dirs, []) + %w(
++  log
++  tmp/cache tmp/pids
++  vendor/bundle
++)
++
++# check out capistrano-rvm documentation
++set :rvm_ruby_version, 'ruby-2.1.6@errbit'
++
++namespace :errbit do
++  desc "Setup config files (first time setup)"
++  task :setup do
++    on roles(:app) do
++      execute "mkdir -p #{shared_path}/config"
++      execute "mkdir -p #{shared_path}/pids"
++      execute "touch #{shared_path}/.env"
++
++      {
++        
++      }.each do |src, target|
++        unless test("[ -f #{shared_path}/#{target} ]")
++          upload! src, "#{shared_path}/#{target}"
++        end
++      end
++    end
++  end
++end
++
++namespace :db do
++  desc "Create and setup the mongo db"
++  task :setup do
++    on roles(:db) do
++      within current_path do
++        with rails_env: fetch(:rails_env) do
++          execute :rake, 'errbit:bootstrap'
++        end
++      end
++    end
++  end
++end
+
+From 13d9526a3e8ea5db7eb6eceb21abbf69b3459e04 Mon Sep 17 00:00:00 2001
+From: Patrick Koperwas <patrickkoperwas@gmail.com>
+Date: Thu, 28 Apr 2016 13:25:47 -0700
+Subject: [PATCH 29/67] Change backtrace grouping logic to only look at lines
+ matching the project root
+
+---
+ app/models/notice_fingerprinter.rb       | 7 ++++++-
+ app/models/problem.rb                    | 2 +-
+ spec/fabricators/backtrace_fabricator.rb | 2 +-
+ spec/models/notice_fingerprinter_spec.rb | 2 +-
+ 4 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/app/models/notice_fingerprinter.rb b/app/models/notice_fingerprinter.rb
+index 141771ade..0918213a2 100644
+--- a/app/models/notice_fingerprinter.rb
++++ b/app/models/notice_fingerprinter.rb
+@@ -24,7 +24,12 @@ def generate(api_key, notice, backtrace)
+     if backtrace_lines < 0
+       material << backtrace.lines
+     else
+-      material << backtrace.lines.slice(0, backtrace_lines)
++      material.concat(
++        backtrace.
++          lines.
++          select { |line| line.with_indifferent_access["file"].to_s.start_with?("[PROJECT_ROOT]") }.
++          slice(0, backtrace_lines)
++      )
+     end
+ 
+     Digest::MD5.hexdigest(material.map(&:to_s).join)
+diff --git a/app/models/problem.rb b/app/models/problem.rb
+index bfe7fb4ed..21803dd4c 100644
+--- a/app/models/problem.rb
++++ b/app/models/problem.rb
+@@ -76,7 +76,7 @@ def self.in_env(env)
+   def self.cache_notice(id, notice)
+     # increment notice count
+     message_digest = Digest::MD5.hexdigest(notice.message)
+-    host_digest = Digest::MD5.hexdigest(notice.host)
++    host_digest = Digest::MD5.hexdigest(notice.hostname)
+     user_agent_digest = Digest::MD5.hexdigest(notice.user_agent_string)
+ 
+     Problem.where('_id' => id).find_one_and_update({
+diff --git a/spec/fabricators/backtrace_fabricator.rb b/spec/fabricators/backtrace_fabricator.rb
+index ea9358a56..9c548e4e8 100644
+--- a/spec/fabricators/backtrace_fabricator.rb
++++ b/spec/fabricators/backtrace_fabricator.rb
+@@ -2,7 +2,7 @@
+   lines(count: 99) do
+     {
+       number: rand(999),
+-      file:   "/path/to/file/#{SecureRandom.hex(4)}.rb",
++      file: "[PROJECT_ROOT]/path/to/file/#{SecureRandom.hex(4)}.rb",
+       method: ActiveSupport.methods.sample
+     }
+   end
+diff --git a/spec/models/notice_fingerprinter_spec.rb b/spec/models/notice_fingerprinter_spec.rb
+index 850c8a61b..e17a26ada 100644
+--- a/spec/models/notice_fingerprinter_spec.rb
++++ b/spec/models/notice_fingerprinter_spec.rb
+@@ -41,7 +41,7 @@
+       before do
+         backtrace1.lines[0] = backtrace2.lines[0]
+         backtrace1.lines[1] = backtrace2.lines[1]
+-        backtrace1.lines[2] = { number: 1, file: 'a', method: :b }
++        backtrace1.lines[2] = { number: 1, file: '[PROJECT_ROOT]/a', method: :b }
+       end
+ 
+       it 'has the same fingerprint when only considering two lines' do
+
+From 82f55b49654383f36632b08a2abad9d224d271e3 Mon Sep 17 00:00:00 2001
+From: Patrick Koperwas <patrickkoperwas@gmail.com>
+Date: Thu, 28 Apr 2016 13:28:08 -0700
+Subject: [PATCH 30/67] Go back to shovel
+
+---
+ app/models/notice_fingerprinter.rb | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/app/models/notice_fingerprinter.rb b/app/models/notice_fingerprinter.rb
+index 0918213a2..4d026539b 100644
+--- a/app/models/notice_fingerprinter.rb
++++ b/app/models/notice_fingerprinter.rb
+@@ -24,12 +24,10 @@ def generate(api_key, notice, backtrace)
+     if backtrace_lines < 0
+       material << backtrace.lines
+     else
+-      material.concat(
+-        backtrace.
+-          lines.
+-          select { |line| line.with_indifferent_access["file"].to_s.start_with?("[PROJECT_ROOT]") }.
+-          slice(0, backtrace_lines)
+-      )
++      material << backtrace.
++        lines.
++        select { |line| line.with_indifferent_access["file"].to_s.start_with?("[PROJECT_ROOT]") }.
++        slice(0, backtrace_lines)
+     end
+ 
+     Digest::MD5.hexdigest(material.map(&:to_s).join)
+
+From ad8a37f94e60ef3b2d910b3f017b35b3d33a16cf Mon Sep 17 00:00:00 2001
+From: Patrick Koperwas <patrickkoperwas@gmail.com>
+Date: Thu, 5 May 2016 10:50:24 -0700
+Subject: [PATCH 31/67] Fix Grouping Again
+
+The modified logic was selecting lines that started with the project
+root. However, the line object looks like this
+
+{
+  "number"=>"148",
+  "file"=>"[PROJECT_ROOT]/app/views/shared/_grid_block_item.html.erb",
+  "method"=> "block in _app_views_shared__grid_block_item_html_erb___4054598342690822596_69862626568500"
+}
+
+The method part sometimes is dynamic / changes. When this is hashed is
+causes the same "error" to spit out a different hash.
+
+To fix just using the "file" part when computing the hash.
+---
+ app/models/notice_fingerprinter.rb | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/app/models/notice_fingerprinter.rb b/app/models/notice_fingerprinter.rb
+index 4d026539b..13b714adc 100644
+--- a/app/models/notice_fingerprinter.rb
++++ b/app/models/notice_fingerprinter.rb
+@@ -26,7 +26,8 @@ def generate(api_key, notice, backtrace)
+     else
+       material << backtrace.
+         lines.
+-        select { |line| line.with_indifferent_access["file"].to_s.start_with?("[PROJECT_ROOT]") }.
++        map { |line| line.with_indifferent_access["file"].to_s }.
++        select { |line| line.start_with?("[PROJECT_ROOT]") }.
+         slice(0, backtrace_lines)
+     end
+ 
+
+From f3df66de4788f0d71867f126c204a5639716c65f Mon Sep 17 00:00:00 2001
+From: Patrick Koperwas <patrickkoperwas@gmail.com>
+Date: Thu, 12 May 2016 16:33:14 -0700
+Subject: [PATCH 32/67] Fix grouping for anonymous classes
+
+---
+ app/models/notice.rb       |  2 +-
+ spec/models/notice_spec.rb | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/app/models/notice.rb b/app/models/notice.rb
+index 36001310d..9b3f53ffa 100644
+--- a/app/models/notice.rb
++++ b/app/models/notice.rb
+@@ -129,7 +129,7 @@ def app_version
+   # filter memory addresses out of object strings
+   # example: "#<Object:0x007fa2b33d9458>" becomes "#<Object>"
+   def filtered_message
+-    message.gsub(/(#<.+?):[0-9a-f]x[0-9a-f]+(>)/, '\1\2')
++    message.gsub(/(#<.+?):[0-9a-f]x[0-9a-f]+(>)[^>]*/, '\1\2')
+   end
+ 
+ protected
+diff --git a/spec/models/notice_spec.rb b/spec/models/notice_spec.rb
+index 00a5dca80..8dad0dbe8 100644
+--- a/spec/models/notice_spec.rb
++++ b/spec/models/notice_spec.rb
+@@ -163,4 +163,16 @@
+       expect(notice.env_vars).to eq({})
+     end
+   end
++
++  describe "filtered message" do
++    it "will strip out the memory address" do
++      notice = Notice.new(message: "#<Object:0x007fa2b33d9458>")
++      expect(notice.filtered_message).to eq("#<Object>")
++    end
++
++    it  "will strip out the memory address for anonymous classes" do
++      notice = Notice.new(message: "#<#<Class:0x00000017db6318>:0x007fe04db74168>")
++      expect(notice.filtered_message).to eq("#<#<Class>>")
++    end
++  end
+ end
+
+From c2f5ff02b3e6343d06b93fe96d6ab2b30f2bf207 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan.phillips@gmail.com>
+Date: Wed, 10 Aug 2016 09:54:33 -0700
+Subject: [PATCH 33/67] Update gems; ruby
+
+---
+ Gemfile.lock     | 193 ++++++++++++++++++++++++-----------------------
+ config/deploy.rb |   4 +-
+ 2 files changed, 100 insertions(+), 97 deletions(-)
+
+diff --git a/Gemfile.lock b/Gemfile.lock
+index c18479d66..ba2996acd 100644
+--- a/Gemfile.lock
++++ b/Gemfile.lock
+@@ -41,13 +41,13 @@ GEM
+       thread_safe (~> 0.3, >= 0.3.4)
+       tzinfo (~> 1.1)
+     addressable (2.4.0)
+-    airbrake (4.3.6)
++    airbrake (4.3.8)
+       builder
+       multi_json
+-    airbrussh (1.0.1)
++    airbrussh (1.1.0)
+       sshkit (>= 1.6.1, != 1.7.0)
+     arel (6.0.3)
+-    ast (2.2.0)
++    ast (2.3.0)
+     bcrypt (3.1.11)
+     bcrypt (3.1.11-java)
+     better_errors (2.1.1)
+@@ -59,10 +59,10 @@ GEM
+     bson (4.1.1)
+     bson (4.1.1-java)
+     builder (3.2.2)
+-    byebug (8.2.5)
++    byebug (9.0.5)
+     callsite (0.0.11)
+     campy (1.0.0)
+-    capistrano (3.5.0)
++    capistrano (3.6.0)
+       airbrussh (>= 1.0.0)
+       capistrano-harrow
+       i18n
+@@ -71,16 +71,16 @@ GEM
+     capistrano-bundler (1.1.4)
+       capistrano (~> 3.1)
+       sshkit (~> 1.2)
+-    capistrano-harrow (0.3.2)
++    capistrano-harrow (0.5.3)
+     capistrano-passenger (0.2.0)
+       capistrano (~> 3.0)
+-    capistrano-rails (1.1.6)
++    capistrano-rails (1.1.7)
+       capistrano (~> 3.1)
+       capistrano-bundler (~> 1.1)
+     capistrano-rvm (0.1.2)
+       capistrano (~> 3.0)
+       sshkit (~> 1.2)
+-    capybara (2.7.0)
++    capybara (2.7.1)
+       addressable
+       mime-types (>= 1.16)
+       nokogiri (>= 1.3.3)
+@@ -89,19 +89,20 @@ GEM
+       xpath (~> 2.0)
+     cliver (0.3.2)
+     coderay (1.1.1)
+-    concurrent-ruby (1.0.1)
+-    concurrent-ruby (1.0.1-java)
+-    coveralls (0.8.13)
+-      json (~> 1.8)
+-      simplecov (~> 0.11.0)
++    concurrent-ruby (1.0.2)
++    concurrent-ruby (1.0.2-java)
++    coveralls (0.8.15)
++      json (>= 1.8, < 3)
++      simplecov (~> 0.12.0)
+       term-ansicolor (~> 1.3)
+       thor (~> 0.19.1)
+-      tins (~> 1.6.0)
+-    css_parser (1.4.1)
++      tins (>= 1.6.0, < 2)
++    css_parser (1.4.5)
+       addressable
+     debug_inspector (0.0.2)
+-    decent_exposure (2.3.3)
+-    devise (3.5.8)
++    decent_exposure (3.0.0)
++      activesupport (>= 4.0)
++    devise (3.5.10)
+       bcrypt (~> 3.0)
+       orm_adapter (~> 0.1)
+       railties (>= 3.2.6, < 5)
+@@ -110,7 +111,7 @@ GEM
+       warden (~> 1.2.3)
+     diff-lcs (1.2.5)
+     docile (1.1.5)
+-    domain_name (0.5.20160310)
++    domain_name (0.5.20160615)
+       unf (>= 0.0.5, < 1.0.0)
+     dotenv (2.1.1)
+     dotenv-rails (2.1.1)
+@@ -121,7 +122,7 @@ GEM
+       activemodel (>= 3.0)
+       activesupport (>= 3.0)
+       request_store (~> 1.0)
+-    email_spec (2.0.0)
++    email_spec (2.1.0)
+       htmlentities (~> 4.3.3)
+       launchy (~> 2.1)
+       mail (~> 2.6.3)
+@@ -130,22 +131,22 @@ GEM
+       octokit
+     errbit_plugin (0.6.0)
+     erubis (2.7.0)
+-    execjs (2.6.0)
+-    fabrication (2.15.0)
++    execjs (2.7.0)
++    fabrication (2.15.2)
+     faraday (0.9.2)
+       multipart-post (>= 1.2, < 3)
+-    ffi (1.9.10-java)
++    ffi (1.9.14-java)
+     flowdock (0.7.1)
+       httparty (~> 0.7)
+       multi_json
+-    font-awesome-rails (4.6.1.0)
++    font-awesome-rails (4.6.3.1)
+       railties (>= 3.2, < 5.1)
+     git-version-bump (0.15.1)
+-    globalid (0.3.6)
++    globalid (0.3.7)
+       activesupport (>= 4.1.0)
+     haml (4.0.7)
+       tilt
+-    hashie (3.4.3)
++    hashie (3.4.4)
+     hipchat (1.5.3)
+       httparty
+       mimemagic
+@@ -158,8 +159,7 @@ GEM
+     htmlentities (4.3.4)
+     http-cookie (1.0.2)
+       domain_name (~> 0.5)
+-    httparty (0.13.7)
+-      json (~> 1.8)
++    httparty (0.14.0)
+       multi_xml (>= 0.5.2)
+     i18n (0.7.0)
+     jquery-rails (2.1.4)
+@@ -167,8 +167,8 @@ GEM
+       thor (>= 0.14, < 2.0)
+     json (1.8.3)
+     json (1.8.3-java)
+-    jwt (1.5.1)
+-    kaminari (0.16.3)
++    jwt (1.5.4)
++    kaminari (0.17.0)
+       actionpack (>= 3.0.0)
+       activesupport (>= 3.0.0)
+     launchy (2.4.3)
+@@ -176,7 +176,7 @@ GEM
+     launchy (2.4.3-java)
+       addressable (~> 2.3)
+       spoon (~> 0.0.1)
+-    libv8 (3.16.14.13)
++    libv8 (3.16.14.15)
+     loofah (2.0.3)
+       nokogiri (>= 1.5.9)
+     mail (2.6.4)
+@@ -186,11 +186,13 @@ GEM
+       rack-contrib (~> 1.1)
+       railties (>= 3.0.0, < 5.1.0)
+     method_source (0.8.2)
+-    mime-types (2.99.1)
+-    mimemagic (0.3.1)
+-    mini_portile2 (2.0.0)
+-    minitest (5.8.4)
+-    mongo (2.2.4)
++    mime-types (3.1)
++      mime-types-data (~> 3.2015)
++    mime-types-data (3.2016.0521)
++    mimemagic (0.3.2)
++    mini_portile2 (2.1.0)
++    minitest (5.9.0)
++    mongo (2.2.7)
+       bson (~> 4.0)
+     mongoid (5.0.2)
+       activemodel (~> 4.0)
+@@ -207,19 +209,20 @@ GEM
+       mongoid (>= 4.0.0)
+       rails (>= 4.2.0)
+       railties (>= 4.2.0)
+-    multi_json (1.11.3)
++    multi_json (1.12.1)
+     multi_xml (0.5.5)
+     multipart-post (2.0.0)
+     net-scp (1.2.1)
+       net-ssh (>= 2.6.5)
+-    net-ssh (3.1.1)
++    net-ssh (3.2.0)
+     netrc (0.11.0)
+-    nokogiri (1.6.7.2)
+-      mini_portile2 (~> 2.0.0.rc2)
+-    nokogiri (1.6.7.2-java)
+-    oauth2 (1.1.0)
++    nokogiri (1.6.8)
++      mini_portile2 (~> 2.1.0)
++      pkg-config (~> 1.1.7)
++    nokogiri (1.6.8-java)
++    oauth2 (1.2.0)
+       faraday (>= 0.8, < 0.10)
+-      jwt (~> 1.0, < 1.5.2)
++      jwt (~> 1.0)
+       multi_json (~> 1.3)
+       multi_xml (~> 0.5)
+       rack (>= 1.2, < 3)
+@@ -231,8 +234,8 @@ GEM
+     omniauth-github (1.1.2)
+       omniauth (~> 1.0)
+       omniauth-oauth2 (~> 1.1)
+-    omniauth-google-oauth2 (0.4.0)
+-      jwt (~> 1.5.0)
++    omniauth-google-oauth2 (0.4.1)
++      jwt (~> 1.5.2)
+       multi_json (~> 1.3)
+       omniauth (>= 1.1.1)
+       omniauth-oauth2 (>= 1.3.1)
+@@ -241,31 +244,31 @@ GEM
+       omniauth (~> 1.2)
+     origin (2.2.0)
+     orm_adapter (0.5.0)
+-    parser (2.3.1.0)
++    parser (2.3.1.2)
+       ast (~> 2.2)
+     pjax_rails (0.4.0)
+       jquery-rails
+       railties (>= 3.2, < 5.0)
+-    poltergeist (1.9.0)
++    pkg-config (1.1.7)
++    poltergeist (1.10.0)
+       capybara (~> 2.1)
+       cliver (~> 0.3.1)
+-      multi_json (~> 1.0)
+       websocket-driver (>= 0.2.0)
+     powerpack (0.1.1)
+-    premailer (1.8.6)
+-      css_parser (>= 1.3.6)
++    premailer (1.8.7)
++      css_parser (>= 1.4.5)
+       htmlentities (>= 4.0.0)
+-    pry (0.10.3)
++    pry (0.10.4)
+       coderay (~> 1.1.0)
+       method_source (~> 0.8.1)
+       slop (~> 3.4)
+-    pry-byebug (3.3.0)
+-      byebug (~> 8.0)
++    pry-byebug (3.4.0)
++      byebug (~> 9.0)
+       pry (~> 0.10)
+     pry-rails (0.3.4)
+       pry (>= 0.9.10)
+-    puma (3.4.0)
+-    puma (3.4.0-java)
++    puma (3.6.0)
++    puma (3.6.0-java)
+     quiet_assets (1.1.0)
+       railties (>= 3.1, < 5.0)
+     rack (1.6.4)
+@@ -309,57 +312,57 @@ GEM
+       rake (>= 0.8.7)
+       thor (>= 0.18.1, < 2.0)
+     rainbow (2.1.0)
+-    rake (11.1.2)
++    rake (11.2.2)
+     ref (2.0.0)
+     request_store (1.3.1)
+-    responders (2.1.2)
++    responders (2.2.0)
+       railties (>= 4.2.0, < 5.1)
+-    rest-client (1.8.0)
++    rest-client (2.0.0)
+       http-cookie (>= 1.0.2, < 2.0)
+-      mime-types (>= 1.16, < 3.0)
+-      netrc (~> 0.7)
++      mime-types (>= 1.16, < 4.0)
++      netrc (~> 0.8)
+     ri_cal (0.8.8)
+-    rspec (3.4.0)
+-      rspec-core (~> 3.4.0)
+-      rspec-expectations (~> 3.4.0)
+-      rspec-mocks (~> 3.4.0)
++    rspec (3.5.0)
++      rspec-core (~> 3.5.0)
++      rspec-expectations (~> 3.5.0)
++      rspec-mocks (~> 3.5.0)
+     rspec-activemodel-mocks (1.0.3)
+       activemodel (>= 3.0)
+       activesupport (>= 3.0)
+       rspec-mocks (>= 2.99, < 4.0)
+-    rspec-core (3.4.4)
+-      rspec-support (~> 3.4.0)
+-    rspec-expectations (3.4.0)
++    rspec-core (3.5.2)
++      rspec-support (~> 3.5.0)
++    rspec-expectations (3.5.0)
+       diff-lcs (>= 1.2.0, < 2.0)
+-      rspec-support (~> 3.4.0)
++      rspec-support (~> 3.5.0)
+     rspec-its (1.2.0)
+       rspec-core (>= 3.0.0)
+       rspec-expectations (>= 3.0.0)
+-    rspec-mocks (3.4.1)
++    rspec-mocks (3.5.0)
+       diff-lcs (>= 1.2.0, < 2.0)
+-      rspec-support (~> 3.4.0)
+-    rspec-rails (3.4.2)
+-      actionpack (>= 3.0, < 4.3)
+-      activesupport (>= 3.0, < 4.3)
+-      railties (>= 3.0, < 4.3)
+-      rspec-core (~> 3.4.0)
+-      rspec-expectations (~> 3.4.0)
+-      rspec-mocks (~> 3.4.0)
+-      rspec-support (~> 3.4.0)
+-    rspec-support (3.4.1)
+-    rubocop (0.39.0)
+-      parser (>= 2.3.0.7, < 3.0)
++      rspec-support (~> 3.5.0)
++    rspec-rails (3.5.1)
++      actionpack (>= 3.0)
++      activesupport (>= 3.0)
++      railties (>= 3.0)
++      rspec-core (~> 3.5.0)
++      rspec-expectations (~> 3.5.0)
++      rspec-mocks (~> 3.5.0)
++      rspec-support (~> 3.5.0)
++    rspec-support (3.5.0)
++    rubocop (0.42.0)
++      parser (>= 2.3.1.1, < 3.0)
+       powerpack (~> 0.1)
+       rainbow (>= 1.99.1, < 3.0)
+       ruby-progressbar (~> 1.7)
+       unicode-display_width (~> 1.0, >= 1.0.1)
+-    ruby-progressbar (1.8.0)
++    ruby-progressbar (1.8.1)
+     rushover (0.3.0)
+       json
+       rest-client
+     sass (3.4.22)
+-    sass-rails (5.0.4)
+-      railties (>= 4.0.0, < 5.0)
++    sass-rails (5.0.6)
++      railties (>= 4.0.0, < 6)
+       sass (~> 3.1)
+       sprockets (>= 2.8, < 4.0)
+       sprockets-rails (>= 2.0, < 4.0)
+@@ -367,22 +370,22 @@ GEM
+     sawyer (0.7.0)
+       addressable (>= 2.3.5, < 2.5)
+       faraday (~> 0.8, < 0.10)
+-    simplecov (0.11.2)
++    simplecov (0.12.0)
+       docile (~> 1.1.0)
+-      json (~> 1.8)
++      json (>= 1.8, < 3)
+       simplecov-html (~> 0.10.0)
+     simplecov-html (0.10.0)
+     slop (3.6.0)
+     spoon (0.0.4)
+       ffi
+-    sprockets (3.6.0)
++    sprockets (3.7.0)
+       concurrent-ruby (~> 1.0)
+       rack (> 1, < 3)
+-    sprockets-rails (3.0.4)
++    sprockets-rails (3.1.1)
+       actionpack (>= 4.0)
+       activesupport (>= 4.0)
+       sprockets (>= 3.0.0)
+-    sshkit (1.10.0)
++    sshkit (1.11.2)
+       net-scp (>= 1.1.2)
+       net-ssh (>= 2.8.0)
+     term-ansicolor (1.3.2)
+@@ -393,25 +396,25 @@ GEM
+     thor (0.19.1)
+     thread_safe (0.3.5)
+     thread_safe (0.3.5-java)
+-    tilt (2.0.2)
++    tilt (2.0.5)
+     timecop (0.8.1)
+-    tins (1.6.0)
++    tins (1.12.0)
+     tzinfo (1.2.2)
+       thread_safe (~> 0.1)
+-    uglifier (3.0.0)
++    uglifier (3.0.1)
+       execjs (>= 0.3.0, < 3)
+     underscore-rails (1.8.3)
+     unf (0.1.4)
+       unf_ext
+     unf (0.1.4-java)
+     unf_ext (0.0.7.2)
+-    unicode-display_width (1.0.3)
++    unicode-display_width (1.1.0)
+     useragent (0.16.7)
+     warden (1.2.6)
+       rack (>= 1.0)
+-    websocket-driver (0.6.3)
++    websocket-driver (0.6.4)
+       websocket-extensions (>= 0.1.0)
+-    websocket-driver (0.6.3-java)
++    websocket-driver (0.6.4-java)
+       websocket-extensions (>= 0.1.0)
+     websocket-extensions (0.1.2)
+     xmpp4r (0.5.6)
+@@ -492,4 +495,4 @@ DEPENDENCIES
+   yajl-ruby
+ 
+ BUNDLED WITH
+-   1.11.2
++   1.12.5
+diff --git a/config/deploy.rb b/config/deploy.rb
+index 980ce953e..73b41ab69 100644
+--- a/config/deploy.rb
++++ b/config/deploy.rb
+@@ -7,7 +7,7 @@
+ # to ./docs/deployment/capistrano.md for more info
+ 
+ # config valid only for current version of Capistrano
+-lock '3.5.0'
++lock '3.6.0'
+ 
+ set :application, 'errbit'
+ set :repo_url, 'https://github.com/bonanza-market/errbit.git'
+@@ -29,7 +29,7 @@
+ )
+ 
+ # check out capistrano-rvm documentation
+-set :rvm_ruby_version, 'ruby-2.1.6@errbit'
++set :rvm_ruby_version, 'ruby-2.3.0@errbit'
+ 
+ namespace :errbit do
+   desc "Setup config files (first time setup)"
+
+From ed8bb43088102a6171ad36cf94a7fe94527e6d7f Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Tue, 6 Dec 2016 14:36:05 -0800
+Subject: [PATCH 34/67] Update repair database command
+
+---
+ app/interactors/old_problem_clearer.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/interactors/old_problem_clearer.rb b/app/interactors/old_problem_clearer.rb
+index b4c6469a7..d2a321df8 100644
+--- a/app/interactors/old_problem_clearer.rb
++++ b/app/interactors/old_problem_clearer.rb
+@@ -27,6 +27,6 @@ def criteria
+   end
+ 
+   def repair_database
+-    Mongoid.default_session.command :repairDatabase => 1
++    Mongoid.default_client.command repairDatabase: 1
+   end
+ end
+
+From 65376198852c9acb0012a592955b36e21af8fe0b Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Thu, 15 Dec 2016 08:42:28 -0800
+Subject: [PATCH 35/67] Add last notice backtrace to problems#show
+
+---
+ app/controllers/api/v1/problems_controller.rb | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/app/controllers/api/v1/problems_controller.rb b/app/controllers/api/v1/problems_controller.rb
+index 9b38b1ce3..728e871c9 100644
+--- a/app/controllers/api/v1/problems_controller.rb
++++ b/app/controllers/api/v1/problems_controller.rb
+@@ -7,7 +7,7 @@ class Api::V1::ProblemsController < ApplicationController
+   FIELDS = %w{_id app_id app_name environment hosts message where first_notice_at last_notice_at resolved resolved_at notices_count}
+ 
+   def show
+-    result = benchmark("[api/v1/problems_controller/show] query time") do
++    problem = benchmark("[api/v1/problems_controller/show] query time") do
+       begin
+         problems_scope.only(FIELDS).find(params[:id])
+       rescue Mongoid::Errors::DocumentNotFound
+@@ -16,9 +16,15 @@ def show
+       end
+     end
+ 
++    attributes = problem.attributes
++
++    if (err = problem.errs.last) && (notice = err.notices.last) && (backtrace = notice.backtrace)
++      attributes["backtrace"] = backtrace.lines
++    end
++
+     respond_to do |format|
+-      format.any(:html, :json) { render json: result } # render JSON if no extension specified on path
+-      format.xml { render xml: result }
++      format.any(:html, :json) { render json: attributes } # render JSON if no extension specified on path
++      format.xml { render xml: attributes }
+     end
+   end
+ 
+
+From fa0c12f40158f5e6fa14ecc3af32099436e20c59 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Thu, 15 Dec 2016 09:03:02 -0800
+Subject: [PATCH 36/67] Update bundle
+
+---
+ Gemfile.lock | 119 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 62 insertions(+), 57 deletions(-)
+
+diff --git a/Gemfile.lock b/Gemfile.lock
+index ba2996acd..b68897bed 100644
+--- a/Gemfile.lock
++++ b/Gemfile.lock
+@@ -40,11 +40,12 @@ GEM
+       minitest (~> 5.1)
+       thread_safe (~> 0.3, >= 0.3.4)
+       tzinfo (~> 1.1)
+-    addressable (2.4.0)
++    addressable (2.5.0)
++      public_suffix (~> 2.0, >= 2.0.2)
+     airbrake (4.3.8)
+       builder
+       multi_json
+-    airbrussh (1.1.0)
++    airbrussh (1.1.1)
+       sshkit (>= 1.6.1, != 1.7.0)
+     arel (6.0.3)
+     ast (2.3.0)
+@@ -56,31 +57,31 @@ GEM
+       rack (>= 0.9.0)
+     binding_of_caller (0.7.2)
+       debug_inspector (>= 0.0.1)
+-    bson (4.1.1)
+-    bson (4.1.1-java)
++    bson (4.2.0)
++    bson (4.2.0-java)
+     builder (3.2.2)
+-    byebug (9.0.5)
++    byebug (9.0.6)
+     callsite (0.0.11)
+     campy (1.0.0)
+-    capistrano (3.6.0)
++    capistrano (3.7.0)
+       airbrussh (>= 1.0.0)
+       capistrano-harrow
+       i18n
+       rake (>= 10.0.0)
+       sshkit (>= 1.9.0)
+-    capistrano-bundler (1.1.4)
++    capistrano-bundler (1.2.0)
+       capistrano (~> 3.1)
+       sshkit (~> 1.2)
+     capistrano-harrow (0.5.3)
+     capistrano-passenger (0.2.0)
+       capistrano (~> 3.0)
+-    capistrano-rails (1.1.7)
++    capistrano-rails (1.2.0)
+       capistrano (~> 3.1)
+       capistrano-bundler (~> 1.1)
+     capistrano-rvm (0.1.2)
+       capistrano (~> 3.0)
+       sshkit (~> 1.2)
+-    capybara (2.7.1)
++    capybara (2.11.0)
+       addressable
+       mime-types (>= 1.16)
+       nokogiri (>= 1.3.3)
+@@ -91,16 +92,16 @@ GEM
+     coderay (1.1.1)
+     concurrent-ruby (1.0.2)
+     concurrent-ruby (1.0.2-java)
+-    coveralls (0.8.15)
++    coveralls (0.8.17)
+       json (>= 1.8, < 3)
+       simplecov (~> 0.12.0)
+       term-ansicolor (~> 1.3)
+       thor (~> 0.19.1)
+-      tins (>= 1.6.0, < 2)
+-    css_parser (1.4.5)
++      tins (~> 1.6)
++    css_parser (1.4.7)
+       addressable
+     debug_inspector (0.0.2)
+-    decent_exposure (3.0.0)
++    decent_exposure (3.0.2)
+       activesupport (>= 4.0)
+     devise (3.5.10)
+       bcrypt (~> 3.0)
+@@ -111,7 +112,7 @@ GEM
+       warden (~> 1.2.3)
+     diff-lcs (1.2.5)
+     docile (1.1.5)
+-    domain_name (0.5.20160615)
++    domain_name (0.5.20161129)
+       unf (>= 0.0.5, < 1.0.0)
+     dotenv (2.1.1)
+     dotenv-rails (2.1.1)
+@@ -132,22 +133,22 @@ GEM
+     errbit_plugin (0.6.0)
+     erubis (2.7.0)
+     execjs (2.7.0)
+-    fabrication (2.15.2)
++    fabrication (2.16.0)
+     faraday (0.9.2)
+       multipart-post (>= 1.2, < 3)
+     ffi (1.9.14-java)
+     flowdock (0.7.1)
+       httparty (~> 0.7)
+       multi_json
+-    font-awesome-rails (4.6.3.1)
++    font-awesome-rails (4.7.0.1)
+       railties (>= 3.2, < 5.1)
+     git-version-bump (0.15.1)
+     globalid (0.3.7)
+       activesupport (>= 4.1.0)
+     haml (4.0.7)
+       tilt
+-    hashie (3.4.4)
+-    hipchat (1.5.3)
++    hashie (3.4.6)
++    hipchat (1.5.4)
+       httparty
+       mimemagic
+     hoi (0.0.6)
+@@ -157,7 +158,7 @@ GEM
+       activesupport
+       builder
+     htmlentities (4.3.4)
+-    http-cookie (1.0.2)
++    http-cookie (1.0.3)
+       domain_name (~> 0.5)
+     httparty (0.14.0)
+       multi_xml (>= 0.5.2)
+@@ -167,7 +168,7 @@ GEM
+       thor (>= 0.14, < 2.0)
+     json (1.8.3)
+     json (1.8.3-java)
+-    jwt (1.5.4)
++    jwt (1.5.6)
+     kaminari (0.17.0)
+       actionpack (>= 3.0.0)
+       activesupport (>= 3.0.0)
+@@ -176,7 +177,7 @@ GEM
+     launchy (2.4.3-java)
+       addressable (~> 2.3)
+       spoon (~> 0.0.1)
+-    libv8 (3.16.14.15)
++    libv8 (3.16.14.17)
+     loofah (2.0.3)
+       nokogiri (>= 1.5.9)
+     mail (2.6.4)
+@@ -191,9 +192,9 @@ GEM
+     mime-types-data (3.2016.0521)
+     mimemagic (0.3.2)
+     mini_portile2 (2.1.0)
+-    minitest (5.9.0)
+-    mongo (2.2.7)
+-      bson (~> 4.0)
++    minitest (5.10.1)
++    mongo (2.4.0)
++      bson (~> 4.2.0)
+     mongoid (5.0.2)
+       activemodel (~> 4.0)
+       mongo (~> 2.1)
+@@ -210,24 +211,23 @@ GEM
+       rails (>= 4.2.0)
+       railties (>= 4.2.0)
+     multi_json (1.12.1)
+-    multi_xml (0.5.5)
++    multi_xml (0.6.0)
+     multipart-post (2.0.0)
+     net-scp (1.2.1)
+       net-ssh (>= 2.6.5)
+     net-ssh (3.2.0)
+     netrc (0.11.0)
+-    nokogiri (1.6.8)
++    nokogiri (1.6.8.1)
+       mini_portile2 (~> 2.1.0)
+-      pkg-config (~> 1.1.7)
+-    nokogiri (1.6.8-java)
++    nokogiri (1.6.8.1-java)
+     oauth2 (1.2.0)
+       faraday (>= 0.8, < 0.10)
+       jwt (~> 1.0)
+       multi_json (~> 1.3)
+       multi_xml (~> 0.5)
+       rack (>= 1.2, < 3)
+-    octokit (4.3.0)
+-      sawyer (~> 0.7.0, >= 0.5.3)
++    octokit (4.6.2)
++      sawyer (~> 0.8.0, >= 0.5.3)
+     omniauth (1.3.1)
+       hashie (>= 1.2, < 4)
+       rack (>= 1.0, < 3)
+@@ -242,15 +242,14 @@ GEM
+     omniauth-oauth2 (1.4.0)
+       oauth2 (~> 1.0)
+       omniauth (~> 1.2)
+-    origin (2.2.0)
++    origin (2.2.2)
+     orm_adapter (0.5.0)
+-    parser (2.3.1.2)
++    parser (2.3.3.1)
+       ast (~> 2.2)
+     pjax_rails (0.4.0)
+       jquery-rails
+       railties (>= 3.2, < 5.0)
+-    pkg-config (1.1.7)
+-    poltergeist (1.10.0)
++    poltergeist (1.12.0)
+       capybara (~> 2.1)
+       cliver (~> 0.3.1)
+       websocket-driver (>= 0.2.0)
+@@ -262,16 +261,22 @@ GEM
+       coderay (~> 1.1.0)
+       method_source (~> 0.8.1)
+       slop (~> 3.4)
+-    pry-byebug (3.4.0)
++    pry (0.10.4-java)
++      coderay (~> 1.1.0)
++      method_source (~> 0.8.1)
++      slop (~> 3.4)
++      spoon (~> 0.0)
++    pry-byebug (3.4.2)
+       byebug (~> 9.0)
+       pry (~> 0.10)
+     pry-rails (0.3.4)
+       pry (>= 0.9.10)
+-    puma (3.6.0)
+-    puma (3.6.0-java)
++    public_suffix (2.0.4)
++    puma (3.6.2)
++    puma (3.6.2-java)
+     quiet_assets (1.1.0)
+       railties (>= 3.1, < 5.0)
+-    rack (1.6.4)
++    rack (1.6.5)
+     rack-contrib (1.4.0)
+       git-version-bump (~> 0.15)
+       rack (~> 1.4)
+@@ -312,10 +317,10 @@ GEM
+       rake (>= 0.8.7)
+       thor (>= 0.18.1, < 2.0)
+     rainbow (2.1.0)
+-    rake (11.2.2)
++    rake (12.0.0)
+     ref (2.0.0)
+     request_store (1.3.1)
+-    responders (2.2.0)
++    responders (2.3.0)
+       railties (>= 4.2.0, < 5.1)
+     rest-client (2.0.0)
+       http-cookie (>= 1.0.2, < 2.0)
+@@ -330,7 +335,7 @@ GEM
+       activemodel (>= 3.0)
+       activesupport (>= 3.0)
+       rspec-mocks (>= 2.99, < 4.0)
+-    rspec-core (3.5.2)
++    rspec-core (3.5.4)
+       rspec-support (~> 3.5.0)
+     rspec-expectations (3.5.0)
+       diff-lcs (>= 1.2.0, < 2.0)
+@@ -341,7 +346,7 @@ GEM
+     rspec-mocks (3.5.0)
+       diff-lcs (>= 1.2.0, < 2.0)
+       rspec-support (~> 3.5.0)
+-    rspec-rails (3.5.1)
++    rspec-rails (3.5.2)
+       actionpack (>= 3.0)
+       activesupport (>= 3.0)
+       railties (>= 3.0)
+@@ -350,7 +355,7 @@ GEM
+       rspec-mocks (~> 3.5.0)
+       rspec-support (~> 3.5.0)
+     rspec-support (3.5.0)
+-    rubocop (0.42.0)
++    rubocop (0.46.0)
+       parser (>= 2.3.1.1, < 3.0)
+       powerpack (~> 0.1)
+       rainbow (>= 1.99.1, < 3.0)
+@@ -367,49 +372,49 @@ GEM
+       sprockets (>= 2.8, < 4.0)
+       sprockets-rails (>= 2.0, < 4.0)
+       tilt (>= 1.1, < 3)
+-    sawyer (0.7.0)
+-      addressable (>= 2.3.5, < 2.5)
+-      faraday (~> 0.8, < 0.10)
++    sawyer (0.8.1)
++      addressable (>= 2.3.5, < 2.6)
++      faraday (~> 0.8, < 1.0)
+     simplecov (0.12.0)
+       docile (~> 1.1.0)
+       json (>= 1.8, < 3)
+       simplecov-html (~> 0.10.0)
+     simplecov-html (0.10.0)
+     slop (3.6.0)
+-    spoon (0.0.4)
++    spoon (0.0.6)
+       ffi
+     sprockets (3.7.0)
+       concurrent-ruby (~> 1.0)
+       rack (> 1, < 3)
+-    sprockets-rails (3.1.1)
++    sprockets-rails (3.2.0)
+       actionpack (>= 4.0)
+       activesupport (>= 4.0)
+       sprockets (>= 3.0.0)
+-    sshkit (1.11.2)
++    sshkit (1.11.4)
+       net-scp (>= 1.1.2)
+       net-ssh (>= 2.8.0)
+-    term-ansicolor (1.3.2)
++    term-ansicolor (1.4.0)
+       tins (~> 1.0)
+     therubyracer (0.12.2)
+       libv8 (~> 3.16.14.0)
+       ref
+-    thor (0.19.1)
++    thor (0.19.4)
+     thread_safe (0.3.5)
+     thread_safe (0.3.5-java)
+     tilt (2.0.5)
+     timecop (0.8.1)
+-    tins (1.12.0)
++    tins (1.13.0)
+     tzinfo (1.2.2)
+       thread_safe (~> 0.1)
+-    uglifier (3.0.1)
++    uglifier (3.0.4)
+       execjs (>= 0.3.0, < 3)
+     underscore-rails (1.8.3)
+     unf (0.1.4)
+       unf_ext
+     unf (0.1.4-java)
+     unf_ext (0.0.7.2)
+-    unicode-display_width (1.1.0)
+-    useragent (0.16.7)
++    unicode-display_width (1.1.2)
++    useragent (0.16.8)
+     warden (1.2.6)
+       rack (>= 1.0)
+     websocket-driver (0.6.4)
+@@ -420,7 +425,7 @@ GEM
+     xmpp4r (0.5.6)
+     xpath (2.0.0)
+       nokogiri (~> 1.3)
+-    yajl-ruby (1.2.1)
++    yajl-ruby (1.3.0)
+ 
+ PLATFORMS
+   java
+@@ -495,4 +500,4 @@ DEPENDENCIES
+   yajl-ruby
+ 
+ BUNDLED WITH
+-   1.12.5
++   1.13.6
+
+From 58e79af303dd0f33ce31622352980071a5b68ca1 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Thu, 15 Dec 2016 09:09:03 -0800
+Subject: [PATCH 37/67] Lock decent_exposure gem to 2.x
+
+---
+ Gemfile      | 2 +-
+ Gemfile.lock | 5 ++---
+ 2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/Gemfile b/Gemfile
+index 8df177b22..0821f0d6a 100644
+--- a/Gemfile
++++ b/Gemfile
+@@ -9,7 +9,7 @@ gem 'actionpack', RAILS_VERSION
+ gem 'railties', RAILS_VERSION
+ 
+ gem 'actionmailer_inline_css'
+-gem 'decent_exposure'
++gem 'decent_exposure', '~> 2.3.3'
+ gem 'devise', '~> 3.5.5'
+ gem 'dotenv-rails'
+ gem 'draper'
+diff --git a/Gemfile.lock b/Gemfile.lock
+index b68897bed..132426dbb 100644
+--- a/Gemfile.lock
++++ b/Gemfile.lock
+@@ -101,8 +101,7 @@ GEM
+     css_parser (1.4.7)
+       addressable
+     debug_inspector (0.0.2)
+-    decent_exposure (3.0.2)
+-      activesupport (>= 4.0)
++    decent_exposure (2.3.3)
+     devise (3.5.10)
+       bcrypt (~> 3.0)
+       orm_adapter (~> 0.1)
+@@ -446,7 +445,7 @@ DEPENDENCIES
+   capistrano-rvm
+   capybara
+   coveralls
+-  decent_exposure
++  decent_exposure (~> 2.3.3)
+   devise (~> 3.5.5)
+   dotenv-rails
+   draper
+
+From 180d66234c8cf5c4c97fd375df8774314350ee91 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Thu, 15 Dec 2016 09:09:13 -0800
+Subject: [PATCH 38/67] Update locked cap version
+
+---
+ config/deploy.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/config/deploy.rb b/config/deploy.rb
+index 73b41ab69..07645cab5 100644
+--- a/config/deploy.rb
++++ b/config/deploy.rb
+@@ -7,7 +7,7 @@
+ # to ./docs/deployment/capistrano.md for more info
+ 
+ # config valid only for current version of Capistrano
+-lock '3.6.0'
++lock '3.7.0'
+ 
+ set :application, 'errbit'
+ set :repo_url, 'https://github.com/bonanza-market/errbit.git'
+
+From dcdf96d34910c5d19f99271e2c384bb9119a928f Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Thu, 15 Dec 2016 12:07:26 -0800
+Subject: [PATCH 39/67] Don't repair database by default when clearing old
+ problems
+
+---
+ app/interactors/old_problem_clearer.rb | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/app/interactors/old_problem_clearer.rb b/app/interactors/old_problem_clearer.rb
+index d2a321df8..3382e6e56 100644
+--- a/app/interactors/old_problem_clearer.rb
++++ b/app/interactors/old_problem_clearer.rb
+@@ -1,19 +1,22 @@
+ require 'problem_destroy'
+ 
+ class OldProblemClearer
++  def initialize(should_repair_database = false)
++    @should_repair_database = should_repair_database
++  end
+ 
+   ##
+   # Clear all problems that haven't received a notice in the last month
+   #
+   def execute
+-    nb_problem_resolved.tap { |nb|
++    nb_problem_resolved.tap do |nb|
+       if nb > 0
+         criteria.each do |problem|
+           ProblemDestroy.new(problem).execute
+         end
+-        repair_database
++        repair_database if @should_repair_database
+       end
+-    }
++    end
+   end
+ 
+   private
+
+From a233bf624b511a0d43d6602222157b82a159e608 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Fri, 3 Feb 2017 10:04:37 -0800
+Subject: [PATCH 40/67] Fix exception when file is nil
+
+This appears to occur when the exception is generated
+in a C-extension method.
+---
+ app/decorators/backtrace_line_decorator.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/decorators/backtrace_line_decorator.rb b/app/decorators/backtrace_line_decorator.rb
+index 16cd69a39..3509c8327 100644
+--- a/app/decorators/backtrace_line_decorator.rb
++++ b/app/decorators/backtrace_line_decorator.rb
+@@ -2,7 +2,7 @@ class BacktraceLineDecorator < Draper::Decorator
+   EMPTY_STRING = ''.freeze
+ 
+   def in_app?
+-    object[:file].match Backtrace::IN_APP_PATH
++    object[:file].to_s.match Backtrace::IN_APP_PATH
+   end
+ 
+   def number
+
+From 80e82b2e488ce1dcbcdc3648fc025c381211c5ff Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Fri, 3 Feb 2017 10:07:53 -0800
+Subject: [PATCH 41/67] Fix additional exceptions when file is nil
+
+This appears to occur when the exception is generated
+in a C-extension method.
+---
+ app/decorators/backtrace_line_decorator.rb | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/app/decorators/backtrace_line_decorator.rb b/app/decorators/backtrace_line_decorator.rb
+index 3509c8327..63cb93c75 100644
+--- a/app/decorators/backtrace_line_decorator.rb
++++ b/app/decorators/backtrace_line_decorator.rb
+@@ -2,7 +2,7 @@ class BacktraceLineDecorator < Draper::Decorator
+   EMPTY_STRING = ''.freeze
+ 
+   def in_app?
+-    object[:file].to_s.match Backtrace::IN_APP_PATH
++    file.match Backtrace::IN_APP_PATH
+   end
+ 
+   def number
+@@ -14,7 +14,7 @@ def column
+   end
+ 
+   def file
+-    object[:file]
++    object[:file].to_s
+   end
+ 
+   def method
+@@ -40,7 +40,7 @@ def link_to_source_file(app, &block)
+   end
+ 
+   def path
+-    File.dirname(object[:file]).gsub(/^\.$/, '') + "/"
++    File.dirname(file).gsub(/^\.$/, '') + "/"
+   end
+ 
+   def decorated_path
+
+From b5dfb2c385a67c79914812b1c7d9a09a8b6138d2 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Fri, 7 Apr 2017 11:28:14 -0700
+Subject: [PATCH 42/67] Handle `nil` backtrace lines
+
+---
+ app/models/notice_fingerprinter.rb | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/app/models/notice_fingerprinter.rb b/app/models/notice_fingerprinter.rb
+index 13b714adc..5fcc60c80 100644
+--- a/app/models/notice_fingerprinter.rb
++++ b/app/models/notice_fingerprinter.rb
+@@ -26,6 +26,7 @@ def generate(api_key, notice, backtrace)
+     else
+       material << backtrace.
+         lines.
++        compact.
+         map { |line| line.with_indifferent_access["file"].to_s }.
+         select { |line| line.start_with?("[PROJECT_ROOT]") }.
+         slice(0, backtrace_lines)
+
+From 32ea0d3ddc7da983c151554e140b3c52700e6a61 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Fri, 7 Apr 2017 13:56:06 -0700
+Subject: [PATCH 43/67] Handle `nil` backtrace lines
+
+---
+ app/decorators/backtrace_decorator.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/decorators/backtrace_decorator.rb b/app/decorators/backtrace_decorator.rb
+index 6ee549578..d183fd61a 100644
+--- a/app/decorators/backtrace_decorator.rb
++++ b/app/decorators/backtrace_decorator.rb
+@@ -1,6 +1,6 @@
+ class BacktraceDecorator < Draper::Decorator
+   def lines
+-    @lines ||= object.lines.map { |line| BacktraceLineDecorator.new line }
++    @lines ||= object.lines.compact.map { |line| BacktraceLineDecorator.new line }
+   end
+ 
+   # Group lines into sections of in-app files and external files
+
+From 015362cce71d3f19e46090c1dee6ef6f81bd935a Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Mon, 10 Apr 2017 10:50:13 -0700
+Subject: [PATCH 44/67] Filter id portion of `ID=<id>` messages for
+ fingerprinting
+
+---
+ app/models/notice.rb                     | 11 ++++++++---
+ spec/models/notice_fingerprinter_spec.rb | 11 +++++++++++
+ 2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/app/models/notice.rb b/app/models/notice.rb
+index 9b3f53ffa..07ba3fb46 100644
+--- a/app/models/notice.rb
++++ b/app/models/notice.rb
+@@ -126,10 +126,15 @@ def app_version
+     server_environment['app-version'] || '' if server_environment
+   end
+ 
+-  # filter memory addresses out of object strings
+-  # example: "#<Object:0x007fa2b33d9458>" becomes "#<Object>"
+   def filtered_message
+-    message.gsub(/(#<.+?):[0-9a-f]x[0-9a-f]+(>)[^>]*/, '\1\2')
++    message.
++      # filter memory addresses out of object strings
++      # example: "#<Object:0x007fa2b33d9458>" becomes "#<Object>"
++      gsub(/(#<.+?):[0-9a-f]x[0-9a-f]+(>)[^>]*/, '\1\2').
++      # filter IDs from common rails exceptions:
++      # example: "Couldn't find SomeModel with ID=274594056 for SomeOtherModel with ID=458060932"
++      # becomes: "Couldn't find SomeModel with ID=[ID] for SomeOtherModel with ID=[ID]"
++      gsub(/\bID=\d+/, 'ID=[ID]')
+   end
+ 
+ protected
+diff --git a/spec/models/notice_fingerprinter_spec.rb b/spec/models/notice_fingerprinter_spec.rb
+index e17a26ada..b13d1feb4 100644
+--- a/spec/models/notice_fingerprinter_spec.rb
++++ b/spec/models/notice_fingerprinter_spec.rb
+@@ -60,5 +60,16 @@
+         expect(f1).to_not eq(f2)
+       end
+     end
++
++    context 'two notices differing only by an ID in the message' do
++      let(:notice1) { Fabricate(:notice, message: 'Something happened ID=1') }
++      let(:notice2) { Fabricate(:notice, message: 'Something happened ID=2') }
++
++      it 'has the same fingerprint' do
++        f1 = fingerprinter.generate('123', notice1, backtrace)
++        f2 = fingerprinter.generate('123', notice2, backtrace)
++        expect(f1).to eq(f2)
++      end
++    end
+   end
+ end
+
+From 5acef7c532ed8218fbb6021099cba08d4d44f555 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Mon, 10 Apr 2017 11:16:58 -0700
+Subject: [PATCH 45/67] Filter id and query segments of some `Mysql2::Error`s
+
+---
+ app/models/notice.rb                     |  8 +++++++-
+ spec/models/notice_fingerprinter_spec.rb | 22 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/app/models/notice.rb b/app/models/notice.rb
+index 07ba3fb46..f8140b9a5 100644
+--- a/app/models/notice.rb
++++ b/app/models/notice.rb
+@@ -134,7 +134,13 @@ def filtered_message
+       # filter IDs from common rails exceptions:
+       # example: "Couldn't find SomeModel with ID=274594056 for SomeOtherModel with ID=458060932"
+       # becomes: "Couldn't find SomeModel with ID=[ID] for SomeOtherModel with ID=[ID]"
+-      gsub(/\bID=\d+/, 'ID=[ID]')
++      gsub(/\bID=\d+/, 'ID=[ID]').
++      # example: "Mysql2::Error: Duplicate entry '283215168' for key 'index_some_table_on_something"
++      # becomes: "Mysql2::Error: Duplicate entry '[ID]' for key 'index_some_table_on_something"
++      sub(/\A(Mysql2::Error: Duplicate entry ')[\d-]+(' for key)/, '\1[ID]\2').
++      # example: "Mysql2::Error: Timeout waiting for a response from the last query. (waited 15 seconds): UPDATE `some_table` SET `some_value` = 1 WHERE `some_table`.`id` = 1"
++      # becomes: "Mysql2::Error: Timeout waiting for a response from the last query. (waited 15 seconds): UPDATE [QUERY]"
++      sub(/\A(Mysql2::Error: .+: [A-Z]+ `).+\Z/, '\1[QUERY]')
+   end
+ 
+ protected
+diff --git a/spec/models/notice_fingerprinter_spec.rb b/spec/models/notice_fingerprinter_spec.rb
+index b13d1feb4..a305846a1 100644
+--- a/spec/models/notice_fingerprinter_spec.rb
++++ b/spec/models/notice_fingerprinter_spec.rb
+@@ -71,5 +71,27 @@
+         expect(f1).to eq(f2)
+       end
+     end
++
++    context 'two Mysql2::Error notices differing only by a duplicate entry ID in the message' do
++      let(:notice1) { Fabricate(:notice, message: "Mysql2::Error: Duplicate entry '1' for key 'index_some_table_on_something") }
++      let(:notice2) { Fabricate(:notice, message: "Mysql2::Error: Duplicate entry '2' for key 'index_some_table_on_something") }
++
++      it 'has the same fingerprint' do
++        f1 = fingerprinter.generate('123', notice1, backtrace)
++        f2 = fingerprinter.generate('123', notice2, backtrace)
++        expect(f1).to eq(f2)
++      end
++    end
++
++    context 'two Mysql2::Error notices differing only by the content of a query' do
++      let(:notice1) { Fabricate(:notice, message: 'Mysql2::Error: Timeout waiting for a response from the last query. (waited 15 seconds): UPDATE `some_table` SET `some_value` = 1 WHERE `some_table`.`id` = 1') }
++      let(:notice2) { Fabricate(:notice, message: 'Mysql2::Error: Timeout waiting for a response from the last query. (waited 15 seconds): UPDATE `some_table` SET `some_value` = 2 WHERE `some_table`.`id` = 2') }
++
++      it 'has the same fingerprint' do
++        f1 = fingerprinter.generate('123', notice1, backtrace)
++        f2 = fingerprinter.generate('123', notice2, backtrace)
++        expect(f1).to eq(f2)
++      end
++    end
+   end
+ end
+
+From 411c51d3420499a6c197534bd4e5196bf7afc2df Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan.phillips@gmail.com>
+Date: Wed, 12 Apr 2017 15:32:35 -0700
+Subject: [PATCH 46/67] Don't require a leading backtick on the post-verb query
+
+---
+ app/models/notice.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/models/notice.rb b/app/models/notice.rb
+index f8140b9a5..3a5c2790f 100644
+--- a/app/models/notice.rb
++++ b/app/models/notice.rb
+@@ -140,7 +140,7 @@ def filtered_message
+       sub(/\A(Mysql2::Error: Duplicate entry ')[\d-]+(' for key)/, '\1[ID]\2').
+       # example: "Mysql2::Error: Timeout waiting for a response from the last query. (waited 15 seconds): UPDATE `some_table` SET `some_value` = 1 WHERE `some_table`.`id` = 1"
+       # becomes: "Mysql2::Error: Timeout waiting for a response from the last query. (waited 15 seconds): UPDATE [QUERY]"
+-      sub(/\A(Mysql2::Error: .+: [A-Z]+ `).+\Z/, '\1[QUERY]')
++      sub(/\A(Mysql2::Error: .+: [A-Z]+ ).+\Z/, '\1[QUERY]')
+   end
+ 
+ protected
+
+From 7cac91fdf0f2d31bdc73c08dbc47cb4e98a681a4 Mon Sep 17 00:00:00 2001
+From: Eric Salczynski <eric.salczynski@gmail.com>
+Date: Tue, 18 Apr 2017 09:47:36 -0500
+Subject: [PATCH 47/67] Index Problem on rails_uuids
+
+Important: Need to update the indexes in the errbit DB.
+---
+ app/models/problem.rb      |  7 ++++-
+ lib/tasks/errbit/demo.rake | 52 ++++++++++++++++++++++----------------
+ 2 files changed, 36 insertions(+), 23 deletions(-)
+
+diff --git a/app/models/problem.rb b/app/models/problem.rb
+index 21803dd4c..79e2ff0cd 100644
+--- a/app/models/problem.rb
++++ b/app/models/problem.rb
+@@ -30,6 +30,7 @@ class Problem
+   field :messages,    type: Hash, default: {}
+   field :hosts,       type: Hash, default: {}
+   field :comments_count, type: Integer, default: 0
++  field :rails_uuids, type: Array, default: []
+ 
+   index app_id: 1
+   index app_name: 1
+@@ -44,7 +45,8 @@ class Problem
+     where:       "text",
+     message:     "text",
+     app_name:    "text",
+-    environment: "text"
++    environment: "text",
++    rails_uuids: "text"
+   }, default_language: "english")
+ 
+   belongs_to :app
+@@ -97,6 +99,9 @@ def self.cache_notice(id, notice)
+         "messages.#{message_digest}.count"       => 1,
+         "hosts.#{host_digest}.count"             => 1,
+         "user_agents.#{user_agent_digest}.count" => 1
++      },
++      '$addToSet' => {
++        'rails_uuids' => notice.request.try(:[], "cgi-data").try(:[], "rails_uuid")
+       }
+     }, return_document: :after)
+   end
+diff --git a/lib/tasks/errbit/demo.rake b/lib/tasks/errbit/demo.rake
+index fdd8fa1ec..854c480a6 100644
+--- a/lib/tasks/errbit/demo.rake
++++ b/lib/tasks/errbit/demo.rake
+@@ -43,28 +43,36 @@ namespace :errbit do
+     end
+ 
+     errors.each do |error_template|
+-      rand(34).times do
+-        ErrorReport.new(
+-          error_template.reverse_merge(
+-            api_key:            app.api_key,
+-            error_class:        "StandardError",
+-            message:            "Oops. Something went wrong!",
+-            backtrace:          random_backtrace,
+-            request:            {
+-              'component' => 'main',
+-              'action'    => 'error',
+-              'url'       => "http://example.com/post/#{[111, 222, 333].sample}"
+-            },
+-            server_environment: { 'environment-name' => Rails.env.to_s },
+-            notifier:           { name: "seeds.rb" },
+-            app_user:           {
+-              id:       "1234",
+-              username: "jsmith",
+-              name:     "John Smith",
+-              url:      "http://www.example.com/users/jsmith"
+-            }
+-          )
+-        ).generate_notice!
++      rand(34).times do |t|
++        url = "http://example.com/post/#{[111, 222, 333].sample}"
++        backtrace = random_backtrace
++
++        rand(5).times do |i|
++          ErrorReport.new(
++            error_template.reverse_merge(
++              api_key:            app.api_key,
++              error_class:        "StandardError",
++              message:            "Oops. Something went wrong!",
++              backtrace:          backtrace,
++              request:            {
++                'component' => 'main',
++                'action'    => 'error',
++                'url'       => url,
++                "cgi-data"  => {
++                  "rails_uuid" => Digest::SHA1.hexdigest(RANDOM_METHODS.sample.to_s + (t.hash % 1000).to_s + (i.hash % 1000).to_s).slice(0, 16)
++                }
++              },
++              server_environment: { 'environment-name' => Rails.env.to_s },
++              notifier:           { name: "seeds.rb" },
++              app_user:           {
++                id:       "1234",
++                username: "jsmith",
++                name:     "John Smith",
++                url:      "http://www.example.com/users/jsmith"
++              }
++            )
++          ).generate_notice!
++        end
+       end
+     end
+ 
+
+From 39d46347b8ea3fa6cd05ec22d5036357a91857a5 Mon Sep 17 00:00:00 2001
+From: Alex Fawkes <alexf@bonanza.com>
+Date: Thu, 20 Apr 2017 11:33:01 -0700
+Subject: [PATCH 48/67] [B-10224] Muck around with comments API
+
+---
+ app/controllers/api/v1/comments_controller.rb | 89 +++++++++++++++++++
+ app/controllers/api/v1/problems_controller.rb |  1 +
+ app/views/notices/_summary.html.haml          | 22 ++---
+ app/views/problems/show.html.haml             | 15 ++--
+ config/routes.rb                              |  1 +
+ 5 files changed, 110 insertions(+), 18 deletions(-)
+ create mode 100644 app/controllers/api/v1/comments_controller.rb
+
+diff --git a/app/controllers/api/v1/comments_controller.rb b/app/controllers/api/v1/comments_controller.rb
+new file mode 100644
+index 000000000..cf5661587
+--- /dev/null
++++ b/app/controllers/api/v1/comments_controller.rb
+@@ -0,0 +1,89 @@
++class Api::V1::CommentsController < ApplicationController
++  respond_to :json, :xml
++
++  before_action :find_problem
++  skip_before_action :authenticate_user!, only: :create
++  before_action :require_api_key_or_authenticate_user!, only: :create
++
++  FIELDS = %w{_id created_at updated_at body err_id user_id}
++
++  def show
++    comment = benchmark("[api/v1/comments_controller/show] query time") do
++      begin
++        comments_scope.only(FIELDS).find(params[:id])
++      rescue Mongoid::Errors::DocumentNotFound
++        head :not_found
++        return false
++      end
++    end
++
++    respond_to do |format|
++      format.any(:html, :json) { render json: comment.attributes }
++      format.xml { render xml: comment.attributes }
++    end
++  end
++
++  def create
++    response = { success: false }
++
++    if current_user
++      if params[:problem_id]
++        @comment = Comment.new
++        @comment[:user_id] = current_user.id
++        params.each { |k, v| @comment[k] = v }
++
++        if @comment.valid?
++          problem = Problem.where(id: params[:problem_id]).last
++          if problem
++            problem.comments << @comment
++            response[:success] = problem.save
++            unless response[:success]
++              response[:message] = "invalid problem"
++            end
++          else
++            response[:message] = "invalid problem id"
++          end
++        else
++          response[:message] = "invalid comment"
++        end
++      else
++        response[:message] = "no problem id"
++      end
++    else
++      response[:message] = "not logged in"
++    end
++
++    respond_to do |format|
++      format.any(:html, :json) { render json: response }
++      format.xml { render xml: response }
++    end
++  end
++
++protected
++
++  def find_problem
++    @problem = Problem.where(comment: @comment).last
++  end
++
++private
++
++  def generate_authentication_token
++    loop do
++      token = Devise.friendly_token
++      break token unless User.where(authentication_token: token).first
++    end
++  end
++
++  def ensure_errbot_user
++    errbot = User.where(name: "Errbot").last
++    unless errbot
++      errbot = User.new
++      errbot.name = "Errbot"
++      errbot.email = "programmers@bonanza.com"
++      errbot.password = "?????????????" # FIXME: before merging
++      errbot.authentication_token = generate_authentication_token
++      errbot.save!
++    end
++    errbot
++  end
++end
+diff --git a/app/controllers/api/v1/problems_controller.rb b/app/controllers/api/v1/problems_controller.rb
+index 728e871c9..0dbc520db 100644
+--- a/app/controllers/api/v1/problems_controller.rb
++++ b/app/controllers/api/v1/problems_controller.rb
+@@ -21,6 +21,7 @@ def show
+     if (err = problem.errs.last) && (notice = err.notices.last) && (backtrace = notice.backtrace)
+       attributes["backtrace"] = backtrace.lines
+     end
++    attributes.merge!(comments: problem.comments.map(&:_id))
+ 
+     respond_to do |format|
+       format.any(:html, :json) { render json: attributes } # render JSON if no extension specified on path
+diff --git a/app/views/notices/_summary.html.haml b/app/views/notices/_summary.html.haml
+index ed4338094..b7a1f27df 100644
+--- a/app/views/notices/_summary.html.haml
++++ b/app/views/notices/_summary.html.haml
+@@ -5,8 +5,8 @@
+       %td.main.nowrap= message_graph(problem)
+     %tr
+       %th Error Class
+-      %td= notice.error_class
+-    - if notice.request['url'].present?
++      %td= "notice.error_class"
++    - if false #notice.request['url'].present?
+       %tr
+         %th URL
+         %td.nowrap= link_to notice.request['url'], notice.request['url']
+@@ -15,10 +15,10 @@
+         %td= notice.to_curl
+     %tr
+       %th Where
+-      %td= notice.where
++      %td= "notice.where"
+     %tr
+       %th Occurred
+-      %td= notice.created_at.to_s(:precise)
++      %td= "notice.created_at.to_s(:precise)"
+     %tr
+       %th Similar
+       %td= problem.notices_count - 1
+@@ -28,19 +28,19 @@
+     %tr
+       %th Tenant
+       %td= tenant_graph(problem)
+-    - if notice.server_environment && notice.server_environment["hostname"]
++    - if false #notice.server_environment && notice.server_environment["hostname"]
+       %tr
+         %th App Server
+-        %td= notice.server_environment && notice.server_environment["hostname"]
+-    - if notice.app_version.present?
++        %td= 'notice.server_environment && notice.server_environment["hostname"]'
++    - if "notice.app_version.present?"
+       %tr
+         %th App Version
+-        %td= notice.app_version
+-    - if notice.framework
++        %td= "notice.app_version"
++    - if "notice.framework"
+       %tr
+         %th Framework
+-        %td= notice.framework
++        %td= "notice.framework"
+     %tr
+       %th Rel. Directory
+-      %td= notice.server_environment && notice.server_environment["project-root"]
++      %td= 'notice.server_environment && notice.server_environment["project-root"]'
+ 
+diff --git a/app/views/problems/show.html.haml b/app/views/problems/show.html.haml
+index d79c6775a..a7e4605e9 100644
+--- a/app/views/problems/show.html.haml
++++ b/app/views/problems/show.html.haml
+@@ -59,7 +59,7 @@
+   %ul
+     %li= link_to 'Summary', '#summary', :rel => 'summary', :class => 'button'
+     %li= link_to 'Backtrace', '#backtrace', :rel => 'backtrace', :class => 'button'
+-    - if @notice && @notice.user_attributes.present?
++    - if false #@notice && @notice.user_attributes.present?
+       %li= link_to 'User', '#user_attributes', :rel => 'user_attributes', :class => 'button'
+     %li= link_to 'Environment', '#environment', :rel => 'environment', :class => 'button'
+     %li= link_to 'Parameters', '#params', :rel => 'params', :class => 'button'
+@@ -72,21 +72,22 @@
+ 
+   #backtrace
+     %h3 Backtrace
+-    = render 'notices/backtrace', :backtrace => @notice.backtrace
++    = "omitted"
++    -#= render 'notices/backtrace', :backtrace => @notice.backtrace
+ 
+-  - if @notice.user_attributes.present?
++  - if false #@notice.user_attributes.present?
+     #user_attributes
+       %h3 User
+-      = render 'notices/user_attributes', :user => @notice.user_attributes
++      = "render 'notices/user_attributes', :user => @notice.user_attributes"
+ 
+   #environment
+     %h3 Environment
+-    = render 'notices/environment', :notice => @notice
++    = "render 'notices/environment', :notice => @notice"
+ 
+   #params
+     %h3 Parameters
+-    = render 'notices/params', :notice => @notice
++    = "render 'notices/params', :notice => @notice"
+ 
+   #session
+     %h3 Session
+-    = render 'notices/session', :notice => @notice
++    = "render 'notices/session', :notice => @notice"
+diff --git a/config/routes.rb b/config/routes.rb
+index 87fce77e6..4c2f0d677 100644
+--- a/config/routes.rb
++++ b/config/routes.rb
+@@ -56,6 +56,7 @@
+   namespace :api do
+     namespace :v1 do
+       resources :problems, only: [:index, :show], defaults: { format: 'json' }
++      resources :comments, only: [:show, :create], defaults: { format: 'json' }
+       resources :notices,  only: [:index], defaults: { format: 'json' }
+       resources :stats, only: [], defaults: { format: 'json' } do
+         collection do
+
+From dc1d5d7c51d816fe904f867a5be293c6b6f6b4d5 Mon Sep 17 00:00:00 2001
+From: Alex Fawkes <alexf@bonanza.com>
+Date: Thu, 20 Apr 2017 11:43:11 -0700
+Subject: [PATCH 49/67] [B-10224] Slightly better error messages
+
+---
+ app/controllers/api/v1/comments_controller.rb | 23 ++++---------------
+ 1 file changed, 5 insertions(+), 18 deletions(-)
+
+diff --git a/app/controllers/api/v1/comments_controller.rb b/app/controllers/api/v1/comments_controller.rb
+index cf5661587..c1dab1176 100644
+--- a/app/controllers/api/v1/comments_controller.rb
++++ b/app/controllers/api/v1/comments_controller.rb
+@@ -10,7 +10,7 @@ class Api::V1::CommentsController < ApplicationController
+   def show
+     comment = benchmark("[api/v1/comments_controller/show] query time") do
+       begin
+-        comments_scope.only(FIELDS).find(params[:id])
++        Comment.only(FIELDS).find(params[:id])
+       rescue Mongoid::Errors::DocumentNotFound
+         head :not_found
+         return false
+@@ -38,19 +38,19 @@ def create
+             problem.comments << @comment
+             response[:success] = problem.save
+             unless response[:success]
+-              response[:message] = "invalid problem"
++              response[:message] = "failed to save problem"
+             end
+           else
+-            response[:message] = "invalid problem id"
++            response[:message] = "no problem"
+           end
+         else
+           response[:message] = "invalid comment"
+         end
+       else
+-        response[:message] = "no problem id"
++        response[:message] = "no problem_id"
+       end
+     else
+-      response[:message] = "not logged in"
++      response[:message] = "no current_user"
+     end
+ 
+     respond_to do |format|
+@@ -73,17 +73,4 @@ def generate_authentication_token
+       break token unless User.where(authentication_token: token).first
+     end
+   end
+-
+-  def ensure_errbot_user
+-    errbot = User.where(name: "Errbot").last
+-    unless errbot
+-      errbot = User.new
+-      errbot.name = "Errbot"
+-      errbot.email = "programmers@bonanza.com"
+-      errbot.password = "?????????????" # FIXME: before merging
+-      errbot.authentication_token = generate_authentication_token
+-      errbot.save!
+-    end
+-    errbot
+-  end
+ end
+
+From bff04f825de4f27f03a86ad37bcef60075db04a7 Mon Sep 17 00:00:00 2001
+From: Alex Fawkes <alexf@bonanza.com>
+Date: Thu, 20 Apr 2017 11:49:13 -0700
+Subject: [PATCH 50/67] [B-10224] Just lookup Errbot user for comment creation
+
+---
+ app/controllers/api/v1/comments_controller.rb | 29 +++++--------------
+ 1 file changed, 7 insertions(+), 22 deletions(-)
+
+diff --git a/app/controllers/api/v1/comments_controller.rb b/app/controllers/api/v1/comments_controller.rb
+index c1dab1176..419ae876a 100644
+--- a/app/controllers/api/v1/comments_controller.rb
++++ b/app/controllers/api/v1/comments_controller.rb
+@@ -1,9 +1,8 @@
+ class Api::V1::CommentsController < ApplicationController
+   respond_to :json, :xml
+ 
+-  before_action :find_problem
+-  skip_before_action :authenticate_user!, only: :create
+-  before_action :require_api_key_or_authenticate_user!, only: :create
++  skip_before_action :authenticate_user!
++  before_action :require_api_key_or_authenticate_user!
+ 
+   FIELDS = %w{_id created_at updated_at body err_id user_id}
+ 
+@@ -26,10 +25,11 @@ def show
+   def create
+     response = { success: false }
+ 
+-    if current_user
+-      if params[:problem_id]
++    if params[:problem_id]
++      errbot = User.where(name: "Errbot").last
++      if errbot
+         @comment = Comment.new
+-        @comment[:user_id] = current_user.id
++        @comment[:user_id] = errbot.id
+         params.each { |k, v| @comment[k] = v }
+ 
+         if @comment.valid?
+@@ -50,7 +50,7 @@ def create
+         response[:message] = "no problem_id"
+       end
+     else
+-      response[:message] = "no current_user"
++      response[:message] = "no errbot user"
+     end
+ 
+     respond_to do |format|
+@@ -58,19 +58,4 @@ def create
+       format.xml { render xml: response }
+     end
+   end
+-
+-protected
+-
+-  def find_problem
+-    @problem = Problem.where(comment: @comment).last
+-  end
+-
+-private
+-
+-  def generate_authentication_token
+-    loop do
+-      token = Devise.friendly_token
+-      break token unless User.where(authentication_token: token).first
+-    end
+-  end
+ end
+
+From 87e014126211c5aac9c831be1eec4e453182bcbb Mon Sep 17 00:00:00 2001
+From: Alex Fawkes <alexf@bonanza.com>
+Date: Thu, 20 Apr 2017 11:52:45 -0700
+Subject: [PATCH 51/67] [B-10224] Strip debug
+
+---
+ app/views/notices/_summary.html.haml | 22 +++++++++++-----------
+ app/views/problems/show.html.haml    | 15 +++++++--------
+ 2 files changed, 18 insertions(+), 19 deletions(-)
+
+diff --git a/app/views/notices/_summary.html.haml b/app/views/notices/_summary.html.haml
+index b7a1f27df..ed4338094 100644
+--- a/app/views/notices/_summary.html.haml
++++ b/app/views/notices/_summary.html.haml
+@@ -5,8 +5,8 @@
+       %td.main.nowrap= message_graph(problem)
+     %tr
+       %th Error Class
+-      %td= "notice.error_class"
+-    - if false #notice.request['url'].present?
++      %td= notice.error_class
++    - if notice.request['url'].present?
+       %tr
+         %th URL
+         %td.nowrap= link_to notice.request['url'], notice.request['url']
+@@ -15,10 +15,10 @@
+         %td= notice.to_curl
+     %tr
+       %th Where
+-      %td= "notice.where"
++      %td= notice.where
+     %tr
+       %th Occurred
+-      %td= "notice.created_at.to_s(:precise)"
++      %td= notice.created_at.to_s(:precise)
+     %tr
+       %th Similar
+       %td= problem.notices_count - 1
+@@ -28,19 +28,19 @@
+     %tr
+       %th Tenant
+       %td= tenant_graph(problem)
+-    - if false #notice.server_environment && notice.server_environment["hostname"]
++    - if notice.server_environment && notice.server_environment["hostname"]
+       %tr
+         %th App Server
+-        %td= 'notice.server_environment && notice.server_environment["hostname"]'
+-    - if "notice.app_version.present?"
++        %td= notice.server_environment && notice.server_environment["hostname"]
++    - if notice.app_version.present?
+       %tr
+         %th App Version
+-        %td= "notice.app_version"
+-    - if "notice.framework"
++        %td= notice.app_version
++    - if notice.framework
+       %tr
+         %th Framework
+-        %td= "notice.framework"
++        %td= notice.framework
+     %tr
+       %th Rel. Directory
+-      %td= 'notice.server_environment && notice.server_environment["project-root"]'
++      %td= notice.server_environment && notice.server_environment["project-root"]
+ 
+diff --git a/app/views/problems/show.html.haml b/app/views/problems/show.html.haml
+index a7e4605e9..d79c6775a 100644
+--- a/app/views/problems/show.html.haml
++++ b/app/views/problems/show.html.haml
+@@ -59,7 +59,7 @@
+   %ul
+     %li= link_to 'Summary', '#summary', :rel => 'summary', :class => 'button'
+     %li= link_to 'Backtrace', '#backtrace', :rel => 'backtrace', :class => 'button'
+-    - if false #@notice && @notice.user_attributes.present?
++    - if @notice && @notice.user_attributes.present?
+       %li= link_to 'User', '#user_attributes', :rel => 'user_attributes', :class => 'button'
+     %li= link_to 'Environment', '#environment', :rel => 'environment', :class => 'button'
+     %li= link_to 'Parameters', '#params', :rel => 'params', :class => 'button'
+@@ -72,22 +72,21 @@
+ 
+   #backtrace
+     %h3 Backtrace
+-    = "omitted"
+-    -#= render 'notices/backtrace', :backtrace => @notice.backtrace
++    = render 'notices/backtrace', :backtrace => @notice.backtrace
+ 
+-  - if false #@notice.user_attributes.present?
++  - if @notice.user_attributes.present?
+     #user_attributes
+       %h3 User
+-      = "render 'notices/user_attributes', :user => @notice.user_attributes"
++      = render 'notices/user_attributes', :user => @notice.user_attributes
+ 
+   #environment
+     %h3 Environment
+-    = "render 'notices/environment', :notice => @notice"
++    = render 'notices/environment', :notice => @notice
+ 
+   #params
+     %h3 Parameters
+-    = "render 'notices/params', :notice => @notice"
++    = render 'notices/params', :notice => @notice
+ 
+   #session
+     %h3 Session
+-    = "render 'notices/session', :notice => @notice"
++    = render 'notices/session', :notice => @notice
+
+From 6aa7fd6c8815caa011942e4cdf91eb5ec52f7800 Mon Sep 17 00:00:00 2001
+From: Eric Salczynski <eric.salczynski@gmail.com>
+Date: Wed, 17 May 2017 08:42:53 -0500
+Subject: [PATCH 52/67] [B-12766] Add Api::V1::Comments#index
+
+---
+ app/controllers/api/v1/comments_controller.rb | 17 +++++++++++++++++
+ config/routes.rb                              |  2 +-
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/app/controllers/api/v1/comments_controller.rb b/app/controllers/api/v1/comments_controller.rb
+index 419ae876a..53abaa0cc 100644
+--- a/app/controllers/api/v1/comments_controller.rb
++++ b/app/controllers/api/v1/comments_controller.rb
+@@ -22,6 +22,17 @@ def show
+     end
+   end
+ 
++  def index
++    comments = benchmark("[api/v1/comments_controller/index] query time") do
++      comments_scope.only(FIELDS).page(params[:page]).per(20).to_a
++    end
++
++    respond_to do |format|
++      format.any(:html, :json) { render json: JSON.dump(comments) } # render JSON if no extension specified on path
++      format.xml { render xml: comments }
++    end
++  end
++
+   def create
+     response = { success: false }
+ 
+@@ -58,4 +69,10 @@ def create
+       format.xml { render xml: response }
+     end
+   end
++
++  private
++
++  def comments_scope
++    params[:problem_id] && @app && @app.problems.where(id: params[:problem_id]).last.comments || Comment
++  end
+ end
+diff --git a/config/routes.rb b/config/routes.rb
+index 4c2f0d677..53f517f90 100644
+--- a/config/routes.rb
++++ b/config/routes.rb
+@@ -56,7 +56,7 @@
+   namespace :api do
+     namespace :v1 do
+       resources :problems, only: [:index, :show], defaults: { format: 'json' }
+-      resources :comments, only: [:show, :create], defaults: { format: 'json' }
++      resources :comments, only: [:index, :show, :create], defaults: { format: 'json' }
+       resources :notices,  only: [:index], defaults: { format: 'json' }
+       resources :stats, only: [], defaults: { format: 'json' } do
+         collection do
+
+From 949a386dde21f6aec856fced8722cf995d74c4c5 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan@bonanza.com>
+Date: Mon, 12 Jun 2017 10:16:58 -0700
+Subject: [PATCH 53/67] Ignore differences in any number with more than two
+ digits when fingerprinting
+
+---
+ app/models/notice.rb                     |  4 ++-
+ spec/models/notice_fingerprinter_spec.rb | 33 ++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/app/models/notice.rb b/app/models/notice.rb
+index 3a5c2790f..8467c9142 100644
+--- a/app/models/notice.rb
++++ b/app/models/notice.rb
+@@ -140,7 +140,9 @@ def filtered_message
+       sub(/\A(Mysql2::Error: Duplicate entry ')[\d-]+(' for key)/, '\1[ID]\2').
+       # example: "Mysql2::Error: Timeout waiting for a response from the last query. (waited 15 seconds): UPDATE `some_table` SET `some_value` = 1 WHERE `some_table`.`id` = 1"
+       # becomes: "Mysql2::Error: Timeout waiting for a response from the last query. (waited 15 seconds): UPDATE [QUERY]"
+-      sub(/\A(Mysql2::Error: .+: [A-Z]+ ).+\Z/, '\1[QUERY]')
++      sub(/\A(Mysql2::Error: .+: [A-Z]+ ).+\Z/, '\1[QUERY]').
++      # At this point, any relatively long number is probably not a useful signal for grouping
++      gsub(/\d{3,}/, '[NUM]')
+   end
+ 
+ protected
+diff --git a/spec/models/notice_fingerprinter_spec.rb b/spec/models/notice_fingerprinter_spec.rb
+index a305846a1..cb7c8baf6 100644
+--- a/spec/models/notice_fingerprinter_spec.rb
++++ b/spec/models/notice_fingerprinter_spec.rb
+@@ -72,6 +72,39 @@
+       end
+     end
+ 
++    context 'two notices differing only by a long number at the start the message' do
++      let(:notice1) { Fabricate(:notice, message: "8600002000 is out of range for ActiveMo[Truncated]") }
++      let(:notice2) { Fabricate(:notice, message: "8800000000 is out of range for ActiveMo[Truncated]") }
++
++      it 'has the same fingerprint' do
++        f1 = fingerprinter.generate('123', notice1, backtrace)
++        f2 = fingerprinter.generate('123', notice2, backtrace)
++        expect(f1).to eq(f2)
++      end
++    end
++
++    context 'two notices differing only by a long number in the message' do
++      let(:notice1) { Fabricate(:notice, message: %(undefined method `stringify_keys' for "custom_category_id=511&per_page=48":String)) }
++      let(:notice2) { Fabricate(:notice, message: %(undefined method `stringify_keys' for "custom_category_id=434&per_page=48":String)) }
++
++      it 'has the same fingerprint' do
++        f1 = fingerprinter.generate('123', notice1, backtrace)
++        f2 = fingerprinter.generate('123', notice2, backtrace)
++        expect(f1).to eq(f2)
++      end
++    end
++
++    context 'two notices differing only by a short number in the message' do
++      let(:notice1) { Fabricate(:notice, message: %(undefined method `stringify_keys' for "custom_category_id=11&per_page=48":String)) }
++      let(:notice2) { Fabricate(:notice, message: %(undefined method `stringify_keys' for "custom_category_id=34&per_page=48":String)) }
++
++      it 'has a different fingerprint' do
++        f1 = fingerprinter.generate('123', notice1, backtrace)
++        f2 = fingerprinter.generate('123', notice2, backtrace)
++        expect(f1).to_not eq(f2)
++      end
++    end
++
+     context 'two Mysql2::Error notices differing only by a duplicate entry ID in the message' do
+       let(:notice1) { Fabricate(:notice, message: "Mysql2::Error: Duplicate entry '1' for key 'index_some_table_on_something") }
+       let(:notice2) { Fabricate(:notice, message: "Mysql2::Error: Duplicate entry '2' for key 'index_some_table_on_something") }
+
+From 4550c95407665cdf2d19b939bb98833ab71e0fed Mon Sep 17 00:00:00 2001
+From: Alex Fawkes <alexf@bonanza.com>
+Date: Thu, 29 Jun 2017 10:07:54 -0700
+Subject: [PATCH 54/67] 404 on bad problem id in comments controller
+
+https://errors.bonanza.com/apps/53fad87965bfd113550002eb/problems/593ad99ad9d1a3261126f5ef
+---
+ app/controllers/api/v1/comments_controller.rb | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/app/controllers/api/v1/comments_controller.rb b/app/controllers/api/v1/comments_controller.rb
+index 53abaa0cc..f5d193b6d 100644
+--- a/app/controllers/api/v1/comments_controller.rb
++++ b/app/controllers/api/v1/comments_controller.rb
+@@ -24,7 +24,12 @@ def show
+ 
+   def index
+     comments = benchmark("[api/v1/comments_controller/index] query time") do
+-      comments_scope.only(FIELDS).page(params[:page]).per(20).to_a
++      begin
++        comments_scope.only(FIELDS).page(params[:page]).per(20).to_a
++      rescue Mongoid::Errors::DocumentNotFound
++        head :not_found
++        return false
++      end
+     end
+ 
+     respond_to do |format|
+@@ -72,7 +77,8 @@ def create
+ 
+   private
+ 
++  # @raise [Mongoid::Errors::DocumentNotFound] if problem_id is present but invalid
+   def comments_scope
+-    params[:problem_id] && @app && @app.problems.where(id: params[:problem_id]).last.comments || Comment
++    params[:problem_id] && @app && @app.problems.find(params[:problem_id]).comments || Comment
+   end
+ end
+
+From f17ad06b3248f43168291a091b9f433168b2618f Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan.phillips@gmail.com>
+Date: Mon, 18 Jun 2018 09:44:00 -0700
+Subject: [PATCH 55/67] Re-add capistrano-passenger; update deploy
+ configuration
+
+---
+ Gemfile          | 13 +++++++------
+ Gemfile.lock     |  3 +++
+ config/deploy.rb |  4 ++--
+ 3 files changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/Gemfile b/Gemfile
+index eb81ff969..fd3b337a6 100644
+--- a/Gemfile
++++ b/Gemfile
+@@ -66,12 +66,13 @@ group :development, :test do
+ end
+ 
+ group :development do
+-  gem 'capistrano',         require: false
+-  gem 'capistrano-bundler', require: false
+-  gem 'capistrano-rails',   require: false
+-  gem 'capistrano-rbenv',   require: false
+-  gem 'capistrano-rvm',     require: false
+-  gem 'capistrano3-puma',   require: false
++  gem 'capistrano',           require: false
++  gem 'capistrano-bundler',   require: false
++  gem 'capistrano-passenger', require: false
++  gem 'capistrano-rails',     require: false
++  gem 'capistrano-rbenv',     require: false
++  gem 'capistrano-rvm',       require: false
++  gem 'capistrano3-puma',     require: false
+   gem 'better_errors'
+   gem 'binding_of_caller', platform: 'ruby'
+   gem 'meta_request'
+diff --git a/Gemfile.lock b/Gemfile.lock
+index 937caf9ef..2c269aba8 100644
+--- a/Gemfile.lock
++++ b/Gemfile.lock
+@@ -67,6 +67,8 @@ GEM
+     capistrano-bundler (1.1.4)
+       capistrano (~> 3.1)
+       sshkit (~> 1.2)
++    capistrano-passenger (0.2.0)
++      capistrano (~> 3.0)
+     capistrano-rails (1.1.3)
+       capistrano (~> 3.1)
+       capistrano-bundler (~> 1.1)
+@@ -442,6 +444,7 @@ DEPENDENCIES
+   campy
+   capistrano
+   capistrano-bundler
++  capistrano-passenger
+   capistrano-rails
+   capistrano-rbenv
+   capistrano-rvm
+diff --git a/config/deploy.rb b/config/deploy.rb
+index 07645cab5..8ad35177d 100644
+--- a/config/deploy.rb
++++ b/config/deploy.rb
+@@ -7,7 +7,7 @@
+ # to ./docs/deployment/capistrano.md for more info
+ 
+ # config valid only for current version of Capistrano
+-lock '3.7.0'
++lock '3.4.1'
+ 
+ set :application, 'errbit'
+ set :repo_url, 'https://github.com/bonanza-market/errbit.git'
+@@ -29,7 +29,7 @@
+ )
+ 
+ # check out capistrano-rvm documentation
+-set :rvm_ruby_version, 'ruby-2.3.0@errbit'
++set :rvm_ruby_version, 'ruby-2.3.5@errbit'
+ 
+ namespace :errbit do
+   desc "Setup config files (first time setup)"
+
+From 4f33618b52cf5179e62b2a2cf6f7d371f60461c0 Mon Sep 17 00:00:00 2001
+From: Jordan Phillips <jordan.phillips@gmail.com>
+Date: Mon, 18 Jun 2018 11:58:11 -0700
+Subject: [PATCH 56/67] Normalize inspected instances in `undefined method X
+ for Y:Klass` messages
+
+---
+ app/models/notice.rb                     |  4 ++++
+ spec/models/notice_fingerprinter_spec.rb | 19 +++++++++++++++----
+ 2 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/app/models/notice.rb b/app/models/notice.rb
+index ead5771e1..a139b1d16 100644
+--- a/app/models/notice.rb
++++ b/app/models/notice.rb
+@@ -130,6 +130,10 @@ def filtered_message
+       # example: "Mysql2::Error: Timeout waiting for a response from the last query. (waited 15 seconds): UPDATE `some_table` SET `some_value` = 1 WHERE `some_table`.`id` = 1"
+       # becomes: "Mysql2::Error: Timeout waiting for a response from the last query. (waited 15 seconds): UPDATE [QUERY]"
+       sub(/\A(Mysql2::Error: .+: [A-Z]+ ).+\Z/, '\1[QUERY]').
++      # Filter inspected value from undefined method X for Y:Klass exceptions
++      # example: "undefined method `beginnning_of_day' for Wed, 13 Jun 2018 01:15:14 PDT -07:00:Time"
++      # becomes: "undefined method `beginnning_of_day' for [INSTANCE]:Time"
++      sub(/(undefined method `.+' for ).+(:\w+)$/, '\1[INSTANCE]\2').
+       # At this point, any relatively long number is probably not a useful signal for grouping
+       gsub(/\d{3,}/, '[NUM]')
+   end
+diff --git a/spec/models/notice_fingerprinter_spec.rb b/spec/models/notice_fingerprinter_spec.rb
+index bf5a9bdd3..bdc7c6868 100644
+--- a/spec/models/notice_fingerprinter_spec.rb
++++ b/spec/models/notice_fingerprinter_spec.rb
+@@ -93,8 +93,8 @@
+     end
+ 
+     context 'two notices differing only by a long number in the message' do
+-      let(:notice1) { Fabricate(:notice, message: %(undefined method `stringify_keys' for "custom_category_id=511&per_page=48":String)) }
+-      let(:notice2) { Fabricate(:notice, message: %(undefined method `stringify_keys' for "custom_category_id=434&per_page=48":String)) }
++      let(:notice1) { Fabricate(:notice, message: %(something happened for "custom_category_id=511&per_page=48":String)) }
++      let(:notice2) { Fabricate(:notice, message: %(something happened for "custom_category_id=434&per_page=48":String)) }
+ 
+       it 'has the same fingerprint' do
+         f1 = fingerprinter.generate('123', notice1, backtrace)
+@@ -104,8 +104,8 @@
+     end
+ 
+     context 'two notices differing only by a short number in the message' do
+-      let(:notice1) { Fabricate(:notice, message: %(undefined method `stringify_keys' for "custom_category_id=11&per_page=48":String)) }
+-      let(:notice2) { Fabricate(:notice, message: %(undefined method `stringify_keys' for "custom_category_id=34&per_page=48":String)) }
++      let(:notice1) { Fabricate(:notice, message: %(something happened for "custom_category_id=11&per_page=48":String)) }
++      let(:notice2) { Fabricate(:notice, message: %(something happened for "custom_category_id=34&per_page=48":String)) }
+ 
+       it 'has a different fingerprint' do
+         f1 = fingerprinter.generate('123', notice1, backtrace)
+@@ -135,5 +135,16 @@
+         expect(f1).to eq(f2)
+       end
+     end
++
++    context 'two NoMethodError notices differing only by the inspected value' do
++      let(:notice1) { Fabricate(:notice, message: "undefined method `beginnning_of_day' for Wed, 13 Jun 2018 01:15:14 PDT -07:00:Time") }
++      let(:notice2) { Fabricate(:notice, message: "undefined method `beginnning_of_day' for Wed, 13 Jun 2018 02:15:14 PDT -07:00:Time") }
++
++      it 'has the same fingerprint' do
++        f1 = fingerprinter.generate('123', notice1, backtrace)
++        f2 = fingerprinter.generate('123', notice2, backtrace)
++        expect(f1).to eq(f2)
++      end
++    end
+   end
+ end
+
+From 4a4f82c2bfa6e52cd0fa28bdee13e7e648a49308 Mon Sep 17 00:00:00 2001
+From: Bill Harding <wbharding@gmail.com>
+Date: Wed, 3 Jun 2020 12:48:31 -0700
+Subject: [PATCH 57/67] Update ruby version to 2.4.10, truncate old notices
+ when we reach 3k notifications
+
+---
+ .gitignore           | 31 ++++++++++++++++---------------
+ .ruby-gemset         |  1 +
+ .ruby-version        |  1 +
+ app/models/notice.rb | 26 +++++++++++++++++++++++++-
+ 4 files changed, 43 insertions(+), 16 deletions(-)
+ create mode 100644 .ruby-gemset
+ create mode 100644 .ruby-version
+
+diff --git a/.gitignore b/.gitignore
+index a06d3686e..ddebcf44d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,22 +1,23 @@
++*#
++*~
+ .bundle
+-.env
+-db/*.sqlite3
+-log/*.log
+-tmp/**/*
+-tmp/*
++bundle
++coverage
+ config/config.yml
+-config/mongoid.yml
++config/deploy.rb
+ config/deploy
++config/mongoid.yml
+ config/newrelic.yml
+-.rvmrc
++db/*.sqlite3
++.DS_Store
++.env
++.generators
++log/*.log
+ .idea
+-*~
++NOTES
++.rakeTasks
+ *.rbc
+-.DS_Store
+ *.rbx
+-bundle
+-coverage
+-*#
+-.ruby-version
+-.tool-versions
+-NOTES
++.rvmrc
++tmp/**/*
++tmp/*
+diff --git a/.ruby-gemset b/.ruby-gemset
+new file mode 100644
+index 000000000..0080cc1be
+--- /dev/null
++++ b/.ruby-gemset
+@@ -0,0 +1 @@
++errbit
+\ No newline at end of file
+diff --git a/.ruby-version b/.ruby-version
+new file mode 100644
+index 000000000..a6c4b4a24
+--- /dev/null
++++ b/.ruby-version
+@@ -0,0 +1 @@
++2.4.10
+\ No newline at end of file
+diff --git a/app/models/notice.rb b/app/models/notice.rb
+index a139b1d16..66bf27ef8 100644
+--- a/app/models/notice.rb
++++ b/app/models/notice.rb
+@@ -2,6 +2,7 @@
+ 
+ class Notice
+   MESSAGE_LENGTH_LIMIT = 1000
++  MAX_SAVED_PER_PROBLEM = 3000
+ 
+   include Mongoid::Document
+   include Mongoid::Timestamps
+@@ -24,6 +25,7 @@ class Notice
+   index(err_id: 1, created_at: 1, _id: 1)
+ 
+   before_save :sanitize
++  after_create :truncate_excess_notices
+   before_destroy :problem_recache
+ 
+   validates :backtrace_id, :server_environment, :notifier, presence: true
+@@ -79,7 +81,7 @@ def request
+   def url
+     request['url']
+   end
+-  
++
+   def hostname
+     server_environment && server_environment["hostname"] || host
+   end
+@@ -91,6 +93,17 @@ def host
+     "N/A"
+   end
+ 
++  def to_curl
++    return "N/A" if url.blank?
++    headers = %w(Accept Accept-Encoding Accept-Language Cookie Referer User-Agent).each_with_object([]) do |name, h|
++      if (value = env_vars["HTTP_#{name.underscore.upcase}"])
++        h << "-H '#{name}: #{value}'"
++      end
++    end
++
++    "curl -X #{env_vars['REQUEST_METHOD'] || 'GET'} #{headers.join(' ')} #{url}"
++  end
++
+   def env_vars
+     vars = request['cgi-data']
+     vars.is_a?(Hash) ? vars : {}
+@@ -162,4 +175,15 @@ def sanitize_hash(hash)
+       end
+     end
+   end
++
++  def truncate_excess_notices
++    if problem && problem.notices.count > MAX_SAVED_PER_PROBLEM
++      excess_records = problem.notices.count - MAX_SAVED_PER_PROBLEM
++      Rails.logger.info "Found #{ excess_records } notices past problem limit of #{ MAX_SAVED_PER_PROBLEM }. Destroying notices"
++      destoryable_notices = problem.notices.order(created_at: :asc).limit(excess_records).to_a
++      Rails.logger.info "Found #{ destoryable_notices.size } records to destroy"
++      destoryable_notices.each(&:destroy)
++      Rails.logger.info "Destruction complete"
++    end
++  end
+ end
+
+From abf020fb462246d11eb35b3b28b656ffa1695147 Mon Sep 17 00:00:00 2001
+From: Bill Harding <wbharding@gmail.com>
+Date: Wed, 3 Jun 2020 12:51:30 -0700
+Subject: [PATCH 58/67] Update rvm ruby version in cap file
+
+---
+ config/deploy.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/config/deploy.rb b/config/deploy.rb
+index 8ad35177d..8d094325a 100644
+--- a/config/deploy.rb
++++ b/config/deploy.rb
+@@ -29,7 +29,7 @@
+ )
+ 
+ # check out capistrano-rvm documentation
+-set :rvm_ruby_version, 'ruby-2.3.5@errbit'
++set :rvm_ruby_version, 'ruby-2.4.10@errbit'
+ 
+ namespace :errbit do
+   desc "Setup config files (first time setup)"
+
+From a1103c51f3efb6561a71b1669b5d3fdfe57a53a9 Mon Sep 17 00:00:00 2001
+From: Bill Harding <wbharding@gmail.com>
+Date: Wed, 3 Jun 2020 13:04:37 -0700
+Subject: [PATCH 59/67] Don't ignore cap production config file >:( First stab
+ at a production cap file
+
+---
+ .gitignore                  |  3 ---
+ Gemfile.lock                |  3 +--
+ config/deploy/production.rb | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 29 insertions(+), 5 deletions(-)
+ create mode 100644 config/deploy/production.rb
+
+diff --git a/.gitignore b/.gitignore
+index ddebcf44d..69809b5fb 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -4,9 +4,6 @@
+ bundle
+ coverage
+ config/config.yml
+-config/deploy.rb
+-config/deploy
+-config/mongoid.yml
+ config/newrelic.yml
+ db/*.sqlite3
+ .DS_Store
+diff --git a/Gemfile.lock b/Gemfile.lock
+index 2c269aba8..ca46ba311 100644
+--- a/Gemfile.lock
++++ b/Gemfile.lock
+@@ -134,7 +134,6 @@ GEM
+     fabrication (2.13.2)
+     faraday (0.9.2)
+       multipart-post (>= 1.2, < 3)
+-    ffi (1.9.8)
+     ffi (1.9.8-java)
+     flowdock (0.6.0)
+       httparty (~> 0.7)
+@@ -508,4 +507,4 @@ DEPENDENCIES
+   yajl-ruby
+ 
+ BUNDLED WITH
+-   1.16.2
++   1.17.3
+diff --git a/config/deploy/production.rb b/config/deploy/production.rb
+new file mode 100644
+index 000000000..d4ee56c48
+--- /dev/null
++++ b/config/deploy/production.rb
+@@ -0,0 +1,28 @@
++set :stage, :app
++set :rails_env, "production"
++
++Airbrussh.configure do |config|
++  config.log_file = "log/deploy_app.log"
++end
++
++server 'misc1.bonanza.com', user: 'deployuser', roles: %w(app web), primary: true
++
++# if ENV["SILENT"] != "true"
++#   before "deploy:starting", "slack:notify_start"
++#   after "deploy:finished", "slack:notify_end"
++# end
++
++# after :deploy, "passenger:conditional_restart"
++
++# Wbh June 2020: taken from original file
++# Simple Role Syntax
++# ==================
++# Supports bulk-adding hosts to roles, the primary server in each group
++# is considered to be the first unless any hosts have the primary
++# property set.  Don't declare `role :all`, it's a meta role.
++
++# role :app, %w(deploy@example.com)
++# role :web, %w(deploy@example.com)
++# role :db,  %w(deploy@example.com)
++
++
+
+From d536d909a2d5602205e149fc783d29cac09a0192 Mon Sep 17 00:00:00 2001
+From: Bill Harding <wbharding@gmail.com>
+Date: Wed, 3 Jun 2020 13:06:35 -0700
+Subject: [PATCH 60/67] Nothing
+
+---
+ config/deploy/production.rb | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/config/deploy/production.rb b/config/deploy/production.rb
+index d4ee56c48..9c2da39ff 100644
+--- a/config/deploy/production.rb
++++ b/config/deploy/production.rb
+@@ -1,10 +1,6 @@
+ set :stage, :app
+ set :rails_env, "production"
+ 
+-Airbrussh.configure do |config|
+-  config.log_file = "log/deploy_app.log"
+-end
+-
+ server 'misc1.bonanza.com', user: 'deployuser', roles: %w(app web), primary: true
+ 
+ # if ENV["SILENT"] != "true"
+
+From b91a9d56353eeaf2f19abd3afe234953fb3ea3d3 Mon Sep 17 00:00:00 2001
+From: Bill Harding <wbharding@gmail.com>
+Date: Wed, 3 Jun 2020 13:40:23 -0700
+Subject: [PATCH 61/67] * Remove cruft from deploy/production.rb * Remove
+ esoteric unexplained variety of destinations used by Rails logger in favor of
+ just using standard Rails log directory
+
+---
+ config/deploy/production.rb | 13 -------------
+ config/environment.rb       | 20 ++++++++++----------
+ 2 files changed, 10 insertions(+), 23 deletions(-)
+
+diff --git a/config/deploy/production.rb b/config/deploy/production.rb
+index 9c2da39ff..f72520c6e 100644
+--- a/config/deploy/production.rb
++++ b/config/deploy/production.rb
+@@ -3,20 +3,7 @@
+ 
+ server 'misc1.bonanza.com', user: 'deployuser', roles: %w(app web), primary: true
+ 
+-# if ENV["SILENT"] != "true"
+-#   before "deploy:starting", "slack:notify_start"
+-#   after "deploy:finished", "slack:notify_end"
+-# end
+-
+-# after :deploy, "passenger:conditional_restart"
+-
+ # Wbh June 2020: taken from original file
+-# Simple Role Syntax
+-# ==================
+-# Supports bulk-adding hosts to roles, the primary server in each group
+-# is considered to be the first unless any hosts have the primary
+-# property set.  Don't declare `role :all`, it's a meta role.
+-
+ # role :app, %w(deploy@example.com)
+ # role :web, %w(deploy@example.com)
+ # role :db,  %w(deploy@example.com)
+diff --git a/config/environment.rb b/config/environment.rb
+index fc46334ad..1d9374657 100644
+--- a/config/environment.rb
++++ b/config/environment.rb
+@@ -4,16 +4,16 @@
+ # Load up Errbit::Config with values from the environment
+ require Rails.root.join('config/load')
+ 
+-if Errbit::Config.log_location == 'STDOUT'
+-  Rails.logger = ActiveSupport::Logger.new STDOUT
+-elsif Errbit::Config.log_location == 'Syslog::Logger'
+-  require 'syslog/logger'
+-  Rails.logger = Syslog::Logger.new('errbit', Syslog::LOG_LOCAL0)
+-else
+-  Rails.logger = ActiveSupport::Logger.new Errbit::Config.log_location
+-end
+-
+-Rails.logger.level = Errbit::Config.log_level.to_sym
++# Commented by WBH June 2020 to get some real logging underway
++# if Errbit::Config.log_location == 'STDOUT'
++#   Rails.logger = ActiveSupport::Logger.new STDOUT
++# elsif Errbit::Config.log_location == 'Syslog::Logger'
++#   require 'syslog/logger'
++#   Rails.logger = Syslog::Logger.new('errbit', Syslog::LOG_LOCAL0)
++# else
++#   Rails.logger = ActiveSupport::Logger.new Errbit::Config.log_location
++# end
++# Rails.logger.level = Errbit::Config.log_level.to_sym
+ 
+ # Initialize the Rails application.
+ Rails.application.initialize!
+
+From 855b530d3c8cef796f14a334833f1b16c066cf04 Mon Sep 17 00:00:00 2001
+From: Bill Harding <wbharding@gmail.com>
+Date: Wed, 3 Jun 2020 14:01:33 -0700
+Subject: [PATCH 62/67] * Nominal documentation on deploy and SSL re-linking
+
+---
+ docs/alloy.md | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+ create mode 100644 docs/alloy.md
+
+diff --git a/docs/alloy.md b/docs/alloy.md
+new file mode 100644
+index 000000000..ba96d2240
+--- /dev/null
++++ b/docs/alloy.md
+@@ -0,0 +1,29 @@
++# Alloy Errbit Fork
++
++Some useful details about this fork. 
++
++## Deploying
++
++```
++cap production deploy
++``` 
++
++Will re-deploy the app to /home/errbit/current on misc1.
++
++## Relinking SSL certs
++
++If you update nginx, you may need to reinstall the SSL certificate for misc1. This can be done by logging into async8
++and running 
++
++```
++rails bonanza_certificates:renew_certificates RAILS_ENV=production
++``` 
++
++Or by manually running 
++
++```
++frontend = BonanzaCertificate.new("WILD")
++remote_filename = "#{ frontend.frontend_name }.pem"
++certificate_content = [ frontend.private_key, frontend.certificate_pem ].join
++BonanzaCertificates::UploadUtils.upload_certificates(BonanzaCertificate::OTHER_SERVERS, remote_filename, certificate_content, Logger.new(STDOUT))
++```
+\ No newline at end of file
+
+From ae32f57f02a7320d4f6cfd47995621403cc9a8e0 Mon Sep 17 00:00:00 2001
+From: Bill Harding <wbharding@gmail.com>
+Date: Wed, 3 Jun 2020 14:41:22 -0700
+Subject: [PATCH 63/67] Less copypasta
+
+---
+ app/models/notice.rb | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/app/models/notice.rb b/app/models/notice.rb
+index 66bf27ef8..a73a9cc71 100644
+--- a/app/models/notice.rb
++++ b/app/models/notice.rb
+@@ -179,10 +179,10 @@ def sanitize_hash(hash)
+   def truncate_excess_notices
+     if problem && problem.notices.count > MAX_SAVED_PER_PROBLEM
+       excess_records = problem.notices.count - MAX_SAVED_PER_PROBLEM
+-      Rails.logger.info "Found #{ excess_records } notices past problem limit of #{ MAX_SAVED_PER_PROBLEM }. Destroying notices"
+-      destoryable_notices = problem.notices.order(created_at: :asc).limit(excess_records).to_a
+-      Rails.logger.info "Found #{ destoryable_notices.size } records to destroy"
+-      destoryable_notices.each(&:destroy)
++      Rails.logger.info "#{ excess_records } notices exist past problem limit of #{ MAX_SAVED_PER_PROBLEM }. Querying for notices"
++      destroyable_notices = problem.notices.order(created_at: :asc).limit(excess_records).to_a
++      Rails.logger.info "Got #{ destroyable_notices.size } sorted records to destroy"
++      destroyable_notices.each(&:destroy)
+       Rails.logger.info "Destruction complete"
+     end
+   end
+
+From 3bd6749544f24a1c55124fc14797af7717d46e11 Mon Sep 17 00:00:00 2001
+From: Bill Harding <wbharding@gmail.com>
+Date: Wed, 3 Jun 2020 15:16:59 -0700
+Subject: [PATCH 64/67] Mention future optimization ideas
+
+---
+ app/models/notice.rb | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/app/models/notice.rb b/app/models/notice.rb
+index a73a9cc71..11a2c51eb 100644
+--- a/app/models/notice.rb
++++ b/app/models/notice.rb
+@@ -182,6 +182,12 @@ def truncate_excess_notices
+       Rails.logger.info "#{ excess_records } notices exist past problem limit of #{ MAX_SAVED_PER_PROBLEM }. Querying for notices"
+       destroyable_notices = problem.notices.order(created_at: :asc).limit(excess_records).to_a
+       Rails.logger.info "Got #{ destroyable_notices.size } sorted records to destroy"
++
++      # WBH June 2020 sees at least a couple ways this could become more efficient:
++      # 1. We could delete more than the minimal records every pass, so this wouldn't be invoked via every single incoming notice when a problem is > 3k
++      # 2. We could pass mongo the list of IDs directly for deletion (WBH has avoided in v1 out of fear of locking operation, possibility of AR callbacks we want to catch, and laziness)
++      # These were not pursued in the v1 implementation upon observation that even amidst a flurry of exceptions, the
++      # "delete one notice per incoming exception" method was able to process each incoming request in <100ms while finding and deleting a notice record
+       destroyable_notices.each(&:destroy)
+       Rails.logger.info "Destruction complete"
+     end
+
+From edad742d97f1d1464259c2cbbe116b04a4918537 Mon Sep 17 00:00:00 2001
+From: Bill Harding <wbharding@gmail.com>
+Date: Wed, 3 Jun 2020 15:20:29 -0700
+Subject: [PATCH 65/67] Cap records that will be deleted per incoming notice
+
+---
+ app/models/notice.rb | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/app/models/notice.rb b/app/models/notice.rb
+index 11a2c51eb..33026a1e0 100644
+--- a/app/models/notice.rb
++++ b/app/models/notice.rb
+@@ -3,6 +3,7 @@
+ class Notice
+   MESSAGE_LENGTH_LIMIT = 1000
+   MAX_SAVED_PER_PROBLEM = 3000
++  MAX_DELETES_PER_REQUEST = 100
+ 
+   include Mongoid::Document
+   include Mongoid::Timestamps
+@@ -180,8 +181,9 @@ def truncate_excess_notices
+     if problem && problem.notices.count > MAX_SAVED_PER_PROBLEM
+       excess_records = problem.notices.count - MAX_SAVED_PER_PROBLEM
+       Rails.logger.info "#{ excess_records } notices exist past problem limit of #{ MAX_SAVED_PER_PROBLEM }. Querying for notices"
+-      destroyable_notices = problem.notices.order(created_at: :asc).limit(excess_records).to_a
+-      Rails.logger.info "Got #{ destroyable_notices.size } sorted records to destroy"
++      notices_to_destroy = [ MAX_DELETES_PER_REQUEST, excess_records ].min
++      destroyable_notices = problem.notices.order(created_at: :asc).limit(notices_to_destroy).to_a
++      Rails.logger.info "Got #{ destroyable_notices.size } sorted records to destroy among #{ excess_records } excess records"
+ 
+       # WBH June 2020 sees at least a couple ways this could become more efficient:
+       # 1. We could delete more than the minimal records every pass, so this wouldn't be invoked via every single incoming notice when a problem is > 3k
+
+From fec4e09ee02b5668afe16d6479635ccdd8e61587 Mon Sep 17 00:00:00 2001
+From: Matthew Kloster <matthew.kloster@gmail.com>
+Date: Wed, 23 Sep 2020 15:31:13 -0700
+Subject: [PATCH 66/67] [G-1540] Support both old and new Airbrake path styles
+
+---
+ app/decorators/backtrace_line_decorator.rb | 10 ++++++----
+ app/models/backtrace.rb                    | 10 ++++++++--
+ 2 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/app/decorators/backtrace_line_decorator.rb b/app/decorators/backtrace_line_decorator.rb
+index 020ba2d8d..6c5193b58 100644
+--- a/app/decorators/backtrace_line_decorator.rb
++++ b/app/decorators/backtrace_line_decorator.rb
+@@ -3,7 +3,7 @@ class BacktraceLineDecorator < Draper::Decorator
+ 
+   def in_app?
+     return false if file.blank?
+-    file.match Backtrace::IN_APP_PATH
++    file.match(Backtrace::IN_APP_OLD_PATH) || file.match(Backtrace::IN_APP_NEW_PATH)
+   end
+ 
+   def number
+@@ -23,7 +23,7 @@ def method
+   end
+ 
+   def file_relative
+-    file.to_s.sub(Backtrace::IN_APP_PATH, EMPTY_STRING)
++    file.to_s.sub(Backtrace::IN_APP_OLD_PATH, EMPTY_STRING).sub(Backtrace::IN_APP_NEW_PATH, EMPTY_STRING)
+   end
+ 
+   def file_name
+@@ -47,8 +47,10 @@ def path
+ 
+   def decorated_path
+     path.
+-      sub(Backtrace::IN_APP_PATH, '').
+-      sub(Backtrace::GEMS_PATH, "<strong>\\1</strong>")
++      sub(Backtrace::IN_APP_OLD_PATH, '').
++      sub(Backtrace::GEMS_OLD_PATH, "<strong>\\1</strong>").
++      sub(Backtrace::IN_APP_NEW_PATH, '').
++      sub(Backtrace::GEMS_NEW_PATH, "<strong>\\1</strong>")
+   end
+ 
+ private
+diff --git a/app/models/backtrace.rb b/app/models/backtrace.rb
+index d40f50aa5..c231b7c44 100644
+--- a/app/models/backtrace.rb
++++ b/app/models/backtrace.rb
+@@ -2,8 +2,14 @@ class Backtrace
+   include Mongoid::Document
+   include Mongoid::Timestamps
+ 
+-  IN_APP_PATH = %r{^\[PROJECT_ROOT\]/?}
+-  GEMS_PATH = %r{\[GEM_ROOT\]\/gems\/([^\/]+)}
++  # For airbrake < 2.9.0
++  IN_APP_OLD_PATH = %r{^\[PROJECT_ROOT\]/?}
++  GEMS_OLD_PATH = %r{\[GEM_ROOT\]\/gems\/([^\/]+)}
++
++  # For airbrake >= 2.9.0
++  # See: https://github.com/errbit/errbit/issues/1477
++  IN_APP_NEW_PATH = %r{^\/PROJECT_ROOT\//?}
++  GEMS_NEW_PATH = %r{\/GEM_ROOT\/gems\/([^\/]+)}
+ 
+   field :fingerprint
+   field :lines
+
+From e5520847284c94cc066457f2827128a749112664 Mon Sep 17 00:00:00 2001
+From: Bill Harding <wbharding@gmail.com>
+Date: Thu, 4 Mar 2021 15:41:07 -0800
+Subject: [PATCH 67/67] Exceptionfixes
+
+---
+ app/controllers/api/v3/notices_controller.rb | 2 +-
+ app/models/error_report.rb                   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/app/controllers/api/v3/notices_controller.rb b/app/controllers/api/v3/notices_controller.rb
+index edba9ba11..b0a02dfce 100644
+--- a/app/controllers/api/v3/notices_controller.rb
++++ b/app/controllers/api/v3/notices_controller.rb
+@@ -24,7 +24,7 @@ def create
+     report.generate_notice!
+     render status: 201, json: {
+       id:  report.notice.id,
+-      url: report.problem.url
++      url: report.problem ? report.problem.url : "[couldnt be calculated]"
+     }
+   rescue AirbrakeApi::ParamsError
+     render text: 'Invalid request', status: 400
+diff --git a/app/models/error_report.rb b/app/models/error_report.rb
+index 06c7f9160..f9b29ee7c 100644
+--- a/app/models/error_report.rb
++++ b/app/models/error_report.rb
+@@ -82,7 +82,7 @@ def cache_attributes_on_problem
+ 
+   def should_email?
+     app.email_at_notices.include?(0) ||
+-      app.email_at_notices.include?(@problem.notices_count)
++      (@problem && app.email_at_notices.include?(@problem.notices_count))
+   end
+ 
+   # Send email notification if needed
