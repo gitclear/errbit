@@ -9,22 +9,12 @@
   ansible.builtin.include_tasks: ruby.yml
   tags: ruby
 
-- name: Errbit | Install SSL certificates
-  ansible.builtin.include_tasks: certs.yml
-  tags: certs
-
-- name: Errbit | Configure nginx
-  ansible.builtin.include_tasks: nginx.yml
-  tags:
-    - nginx
-    - passenger
-
 - name: Errbit | Create /home/errbit directory
   ansible.builtin.file:
     path: /home/errbit
     owner: deployuser
     state: directory
-    mode: '0700'
+    mode: '0755'
 
 - name: Errbit | Create deploy directories
   remote_user: deployuser
@@ -72,12 +62,6 @@
   with_items:
     - nodejs
     - libxml2-dev
-
-- name: Errbit | Install Monit config file
-  ansible.builtin.copy:
-    src: monit-nginx.conf
-    dest: /etc/monit/conf.d/nginx.conf
-    mode: "0644"
 
 - name: Errbit | Add crontab entry to trim old issues
   remote_user: deployuser

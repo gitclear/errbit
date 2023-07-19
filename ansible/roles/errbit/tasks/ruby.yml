@@ -25,6 +25,8 @@
       - libgmp-dev
       - graphicsmagick-imagemagick-compat
       - zlib1g-dev
+  tags:
+    - ruby
 
 - name: ruby | Install ruby
   become: true
@@ -34,14 +36,19 @@
     --autolibs=2 \
     {{ (set_default is not defined or set_default) | ternary("--default", "") }} \
     {{ ruby_version }}
+  args:
     creates: ~/.rvm/rubies/ruby-{{ ruby_version }}
+  tags:
+    - ruby
 
 - name: ruby | Create gemset
   become: true
   become_user: deployuser
   ansible.builtin.command:
-    cmd: rvm use --create {{ ruby_version }}@{{ ruby_gemset }}"
-    creates: ~/.rvm/gems/ruby-{{ ruby_version }}@{{ ruby_gemset }}
+    cmd: 'bash -lc "rvm use --create {{ ruby_version }}@{{ ruby_gemset }}"'
+    creates: "/home/deployuser/.rvm/gems/ruby-{{ ruby_version }}@{{ ruby_gemset }}"
+  tags:
+    - ruby
 
 - name: ruby | Install bundler
   become: true
@@ -49,3 +56,5 @@
   ansible.builtin.command: '~/.rvm/wrappers/ruby-{{ item }}/gem install bundler:{{ ruby_bundler_version }}'
   with_items:
     - "{{ ruby_version }}@{{ ruby_gemset }}"
+  tags:
+    - ruby

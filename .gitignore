@@ -19,3 +19,4 @@ coverage
 .tool-versions
 NOTES
 *.swp
+.vault_pass.txt

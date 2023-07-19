@@ -17,52 +17,14 @@
     - { rule: 'allow', name: 'OpenSSH' }
   notify: restart ufw
 
-- name: ufw | allow loadbalancer on 80
-  ufw:
-    rule: allow
-    from_ip: "{{ item }}"
-    port: 80
-  with_items: "{{ load_balancer_ip }}"
-  when: inventory_hostname in groups['web']
-
-- name: ufw | Allow Redis server connections for app servers
-  ufw:
-    rule: allow
-    from_ip: "{{ hostvars[item[0]]['ip'] }}"
-    port: "{{ item[1] }}"
-  with_nested:
-    - "{{ groups['app'] }}"
-    - [ "6379", "6380", "26379" ]
-  tags: ufw_config
-  when: inventory_hostname in groups['redis']
-
-- name: ufw | Allow Postgres server connections from app servers
-  ufw:
-    rule: allow
-    from_ip: "{{ item }}"
-    port: 5432
-  with_items: "{{ app_server_ips }}"
-  tags: ufw_config
-  when: inventory_hostname in groups['database']
-
-- name: ufw | Allow Redis server connections for database [sop-db2] server
-  ufw:
-    rule: allow
-    from_ip: "10.0.100.19"
-    port: "{{ item }}"
-  with_items:
-    - [ "6379", "6380", "26379" ]
-  tags: ufw_config
-  when: inventory_hostname in groups['redis']
-
-- name: ufw | Stage servers allow port 80 and 443
+- name: ufw | Errbit servers allow port 80 and 443
   ufw:
     rule: allow
     port: "{{ item }}"
   with_items:
     - 80
     - 443
-  when: staging is defined and inventory_hostname in groups['web']
+  when: inventory_hostname in groups['errbit']
 
 - name: ufw | allow incoming MNX monitoring
   ufw:

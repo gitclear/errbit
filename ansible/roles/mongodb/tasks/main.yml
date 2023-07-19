@@ -1,0 +1,10 @@
+---
+- name: Install MongoDB
+  include: mongodb.yml
+  tags: mongodb
+
+- name: Add logrotate config
+  copy:
+    src: logrotate-mongodb
+    dest: /etc/logrotate.d/mongodb
+  tags: mongodb

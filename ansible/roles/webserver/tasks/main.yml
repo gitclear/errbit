@@ -1,0 +1,3 @@
+- include: nginx.yml
+  tags: nginx
+  when: inventory_hostname in groups['web'] or inventory_hostname in groups['errbit']

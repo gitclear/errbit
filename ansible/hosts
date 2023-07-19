@@ -1,0 +1,10 @@
+[app]
+
+[haproxy]
+
+[staging]
+
+[web]
+
+[errbit]
+errbit.gitclear.com ansible_user=deployuser ip=8.225.232.129

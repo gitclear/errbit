@@ -1,0 +1,90 @@
+# Installs MongoDB, including configuration, on debian sysvinit based systems.
+# As of 6/2014 mongo is only used by errbit (exception reporting)
+#
+# Bootstrapping a new mongo server and want to copy over the existing database? After finishing provisioning the new
+# server with this role, log on to the new server and run:
+#   > mongodb <new server IP>
+#   > use errbit_production
+#   > db.dropDatabase()
+#   > db.copyDatabase("errbit_production", "errbit_production", "<old server ip>", "errbit_user", "<errbit user password>")
+# You should now be able to see the DB locally:
+#   > show dbs
+#   admin  0.203125GB
+#   errbit_production  3.9521484375GB
+#   local  0.078125GB
+---
+- # Per https://www.digitalocean.com/community/tutorials/how-to-install-mongodb-on-ubuntu-20-04
+- name: mongodb | Fetch mongo signing key
+  apt_key:
+    url="https://www.mongodb.org/static/pgp/server-4.4.asc"
+    state=present
+
+- name: mongodb | Add mongo source to apt
+  # WBH Aug 2021 hopefully correct translation?
+  # shell: echo "deb [ arch=amd64,arm64 ]  focal/mongodb-org/4.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+  apt_repository:
+    repo: deb https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse
+    state: present
+
+- name: mongodb | Install latest MongoDB release
+  apt:
+    pkg: mongodb-org
+    state: present
+    update_cache: yes
+
+- name: mongodb | Load vars
+  include_vars: ../vars/mongodb.yml
+
+- name: Create data directory
+  file:
+    path: /mnt/mongodb/data
+    state: directory
+    owner: mongodb
+
+- name: mongodb | Push default configuration template
+  template:
+    src=mongod.conf.j2
+    dest=/etc/mongod.conf
+    owner=root group=root mode=0644
+  notify:
+  - mongodb-restart
+  tags: mongodb_config_file
+
+- name: mongodb | Ensure daemon is running correctly
+  service: name=mongod state=started daemon-reload=true
+
+# This makes the mongodb_user module work (used below)
+- name: mongodb | Install python package manager
+  apt: pkg=python3-pip state=present
+
+- name: mongodb | Install pymongo
+  pip: name=pymongo
+
+- name: mongodb | Create admin database
+  shell: mongo {{ internal_ip_address }} --eval "db.getSiblingDB('admin');"
+
+- name: mongodb | Add admin user
+  mongodb_user:
+    database: admin
+    login_host: "{{ internal_ip_address }}"
+    user: admin
+    password: "{{ mongodb_admin_password }}"
+
+- name: mongodb | Add app user
+  mongodb_user:
+    database: errbit_production
+    login_host: "{{ internal_ip_address }}"
+    login_user: admin
+    login_password: "{{ mongodb_admin_password }}"
+    user: errbit_user
+    password: "{{ mongodb_user_password }}"
+
+- name: mongodb | Increase ulimit
+  lineinfile:
+    dest: /etc/security/limits.conf
+    line: "{{ item }}"
+  with_items:
+    - "root             soft    nofile          200000"
+    - "root             hard    nofile          200000"
+    - "deployuser       soft    nofile          200000"
+    - "deployuser       hard    nofile          200000"

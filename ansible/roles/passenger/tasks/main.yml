@@ -1,0 +1,8 @@
+---
+- include: passenger.yml
+  tags: passenger
+  when: inventory_hostname in groups['web'] or inventory_hostname in groups['errbit']
+
+- include: gitclear.yml
+  tags: gitclear
+  when: inventory_hostname in groups['app']

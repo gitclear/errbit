@@ -8,6 +8,10 @@
 [coveralls-url]: https://coveralls.io/github/errbit/errbit?branch=master
 [heroku-deploy-url]:https://heroku.com/deploy?template=https://github.com/errbit/errbit/tree/main
 
+### GitClear documentation
+For details how to deploy errbit for GitClear, see:
+[./docs/gitclear.md](./docs/gitclear.md)
+
 ### The open source, self-hosted error catcher
 
 Errbit is a tool for collecting and managing errors from other applications.

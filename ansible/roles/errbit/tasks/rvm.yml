@@ -6,22 +6,38 @@
     gpg --keyserver hkp://keyserver.ubuntu.com --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB
   args:
     creates: ~/.gnupg/trustdb.gpg
+  tags:
+    - ruby
+    - rvm
 
 - name: rvm | Install or update rvm
   become: true
   become_user: deployuser
   ansible.builtin.shell: |
     set -o pipefail
-    curl -L https://get.rvm.io | bash -s stable
+    \curl -L https://get.rvm.io | bash -s stable
   args:
     creates: ~/.rvm
+    executable: /bin/bash
   tags:
-    - rvm
     - ruby
+    - rvm
+
+- name: rvm | source rvm function in deployuser bashrc
+  become: true
+  become_user: deployuser
+  ansible.builtin.blockinfile:
+    path: ~/.bashrc
+    insertafter: ".rvm/bin"
+    block: |
+      source ~/.rvm/scripts/rvm
+  tags:
+    - ruby
+    - rvm
 
 - name: rvm | Upgrade to latest stable
   become: true
   become_user: deployuser
-  ansible.builtin.command: 'rvm get stable'
+  ansible.builtin.shell: 'bash -lc "rvm get stable"'
   tags:
     - rvm_upgrade

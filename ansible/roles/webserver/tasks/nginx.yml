@@ -1,0 +1,87 @@
+---
+- name: nginx | add key for passenger repos
+  apt_key: url=http://keyserver.ubuntu.com/pks/lookup?op=get&search=0x561F9B9CAC40B2F7 id=AC40B2F7 state=present
+
+- name: nginx | add passenger OSS repo
+  apt_repository:
+    repo='deb https://oss-binaries.phusionpassenger.com/apt/passenger {{ ansible_distribution_release }} main'
+    state=present
+    update_cache=yes
+  when:  staging is defined or inventory_hostname in groups['errbit']
+
+- name: nginx | Install nginx - Bionic
+  apt:
+    state: present
+    pkg:
+      - nginx-common=1.14.0-0ubuntu1.9
+      - nginx-extras=1.14.0-0ubuntu1.9
+  when: ansible_distribution_release == 'bionic'
+
+- name: nginx | Install nginx - Focal
+  apt:
+    state: present
+    pkg:
+      - nginx-common=1.18.0-0ubuntu1.4
+      - nginx-extras=1.18.0-0ubuntu1.4
+  when: ansible_distribution_release == 'focal'
+
+- name: nginx | install nginx passenger OSS packages - Focal
+  apt: pkg={{ item.package }} state={{ item.state }}
+  with_items:
+    - { package: "python-passlib", state: "present" }
+    - { package: "libnginx-mod-http-passenger=1:6.0.18-1~focal1", state: "present" }
+    - { package: "passenger-enterprise", state: "absent" }
+    - { package: "passenger=1:6.0.18-1~focal1", state: "present" }
+  notify: restart nginx
+  when: staging is defined or inventory_hostname in groups['errbit'] and ansible_distribution_release == 'focal'
+
+- name: nginx | Install nginx config file
+  template:
+    src: templates/nginx.conf
+    dest: /etc/nginx/nginx.conf
+    mode: 0644
+  notify:
+    - Reload nginx
+
+#- name: nginx | Install nginx passenger config file
+#  template:
+#    src: templates/passenger.conf
+#    dest: /etc/nginx/conf.d/passenger.conf
+#    mode: 0644
+#  notify:
+#    - Reload nginx
+#  tags: passenger
+
+- name: nginx | Install nginx conf for Errbit
+  template:
+    src: templates/nginx-errbit.conf
+    dest: /etc/nginx/conf.d/nginx-errbit.conf
+    mode: 0644
+  notify: Reload nginx
+  tags: nginx_config
+  when: inventory_hostname in groups['errbit']
+
+- name: nginx | Create passwd file
+  copy:
+    dest: /etc/nginx/htpasswd
+    content: "gitclear:$apr1$xmRgTIge$cy3BYZam7dpvmr9yYEAqx/\n"
+    owner: root
+    group: www-data
+    mode: 0640
+  tags: nginx_config
+
+- name: nginx | Remove default nginx server
+  file:
+    dest: "{{ item }}"
+    state: absent
+  with_items:
+    - /etc/nginx/sites-enabled/default
+    - /etc/nginx/conf.d/default.conf
+    - /etc/nginx/conf.d/mod-http-passenger.conf
+  notify:
+    - Reload nginx
+
+- name: nginx | Add nginx logrotate config
+  copy:
+    src: logrotate-nginx
+    dest: /etc/logrotate.d/nginx

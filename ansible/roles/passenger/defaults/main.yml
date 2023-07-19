@@ -1,0 +1,14 @@
+---
+private_access_directives: |-
+  satisfy any;
+  allow 10.0.100.0/24; # Local network
+  allow 66.171.187.124; # Bonanza HQ
+  allow 199.231.247.45; # Bonanza HQ Alt
+  allow 73.42.188.177; # Bill's house
+  allow 98.203.133.39; # Jordan's house
+  allow 73.35.196.216; # Jordan's u dist house
+  allow 75.126.18.114; # MNX
+  deny all;
+
+  auth_basic "Authentication Required";
+  auth_basic_user_file htpasswd;

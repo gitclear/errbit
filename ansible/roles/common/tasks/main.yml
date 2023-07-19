@@ -82,10 +82,10 @@
     regexp: '^%deployuser'
     line: '%deployuser ALL=(ALL) NOPASSWD: ALL'
 
-- name: common | Set host name
-  command: "hostnamectl set-hostname {{ inventory_hostname }}.gitclear.com"
+- name: common | Set host name for errbit host
+  command: "hostnamectl set-hostname {{ inventory_hostname }}"
   tags: hostname
-  when: inventory_hostname not in groups['haproxy']
+  when: inventory_hostname in groups['errbit']
 
 - name: common | Set host name - HAProxy Boxes
   command: "hostnamectl set-hostname {{ inventory_hostname }}"

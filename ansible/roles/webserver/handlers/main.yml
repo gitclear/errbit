@@ -1,0 +1,12 @@
+---
+- name: Reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+  when: inventory_hostname in groups['web', 'errbit']
+
+- name: Restart nginx
+  ansible.builtin.service:
+    name: nginx
+    state: restarted
+  when: inventory_hostname in groups['web', 'errbit']
