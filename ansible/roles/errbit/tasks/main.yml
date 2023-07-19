@@ -24,7 +24,6 @@
     owner: deployuser
     mode: '0755'
   with_items:
-    - current
     - releases
     - shared
     - shared/config
