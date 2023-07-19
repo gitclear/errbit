@@ -7,11 +7,11 @@
 # to ./docs/deployment/capistrano.md for more info
 
 # config valid only for current version of Capistrano
-lock '3.4.1'
+lock '3.17.3'
 
 set :application, 'errbit'
-set :repo_url, 'https://github.com/bonanza-market/errbit.git'
-set :branch, ENV['branch'] || 'master'
+set :repo_url, 'https://github.com/gitclear/errbit.git'
+set :branch, ENV['branch'] || 'main'
 set :deploy_to, '/home/errbit'
 set :keep_releases, 3
 
@@ -29,7 +29,7 @@ set :linked_dirs, fetch(:linked_dirs, []) + %w(
 )
 
 # check out capistrano-rvm documentation
-set :rvm_ruby_version, 'ruby-2.4.10@errbit'
+set :rvm_ruby_version, 'ruby-2.7.6@errbit'
 
 namespace :errbit do
   desc "Setup config files (first time setup)"

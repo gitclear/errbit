@@ -12,8 +12,8 @@
 - name: Errbit | Create /home/errbit directory
   ansible.builtin.file:
     path: /home/errbit
-    owner: deployuser
     state: directory
+    owner: deployuser
     mode: '0755'
 
 - name: Errbit | Create deploy directories
@@ -21,8 +21,10 @@
   ansible.builtin.file:
     path: /home/errbit/{{ item }}
     state: directory
+    owner: deployuser
     mode: '0755'
   with_items:
+    - current
     - releases
     - shared
     - shared/config
