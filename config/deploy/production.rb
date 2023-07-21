@@ -1,7 +1,7 @@
 set :stage, :app
 set :rails_env, "production"
 
-server 'errbit.gitclear.com', user: 'deployuser', roles: %w(app web), primary: true
+server 'errbit.gitclear.com', user: 'deployuser', roles: %w(app web db), primary: true
 
 # Wbh June 2020: taken from original file
 # role :app, %w(deploy@example.com)
