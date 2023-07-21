@@ -14,7 +14,7 @@ echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
 3. Run the following to enter the `devshell` with all required dependencies
 installed.
 ```
-nix develop
+nix develop --impure ./nix
 ```
 
 #### Optional:

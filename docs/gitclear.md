@@ -19,6 +19,8 @@ $EDITOR ansible/roles/webserver/tasks/nginx.yml
 
 # Run the playbook
 ansible-playbook provision.yml --inventory ./hosts --become
+
+cd ..
 ```
 
 ## Deploying errbit
@@ -31,7 +33,21 @@ current remote `main` branch on GitHub to the host defined in
 bundle install
 
 cap production deploy
+
+# Only for initial deployment
+cap production db:setup
+```
+
+For updates, commit your changes and push them to the `main` branch.
+Then run:
+```
+cap production deploy
 ```
 
 This will re-deploy errbit from the remote `main` branch in this repository to
-`/home/errbit/current` on errbit.gitclear.com.
+`/home/errbit/current` on errbit.gitclear.com and restart `passenger`.
+
+URL: https://errbit.gitclear.com
+Login with email `errbit@errbit.gitclear.com` and the password you set for the
+`ERRBIT_ADMIN_PASSWORD` environment variable in ansible-vault
+`errbit_env_content.yml`.
