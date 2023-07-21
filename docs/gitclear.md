@@ -14,9 +14,6 @@ vim ./hosts
 ansible-vault edit ansible/vars/vaults/errbit_env_content.yml
 ansible-vault edit ansible/vars/vaults/mongodb.yml
 
-# basic auth password for nginx, search for 'htpasswd'
-$EDITOR ansible/roles/webserver/tasks/nginx.yml
-
 # Run the playbook
 ansible-playbook provision.yml --inventory ./hosts --become
 
@@ -48,6 +45,7 @@ This will re-deploy errbit from the remote `main` branch in this repository to
 `/home/errbit/current` on errbit.gitclear.com and restart `passenger`.
 
 URL: https://errbit.gitclear.com
+
 Login with email `errbit@errbit.gitclear.com` and the password you set for the
 `ERRBIT_ADMIN_PASSWORD` environment variable in ansible-vault
 `errbit_env_content.yml`.
