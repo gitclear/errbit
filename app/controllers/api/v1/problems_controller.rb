@@ -16,9 +16,16 @@ class Api::V1::ProblemsController < ApplicationController
       end
     end
 
+    result_hash = result.attributes
+
+    last_notice = result.notices.last
+    if last_notice
+      result_hash["backtrace"] = last_notice.backtrace.lines.to_a
+    end
+
     respond_to do |format|
-      format.any(:html, :json) { render json: result } # render JSON if no extension specified on path
-      format.xml { render xml: result }
+      format.any(:html, :json) { render json: result_hash } # render JSON if no extension specified on path
+      format.xml { render xml: result_hash }
     end
   end
 
