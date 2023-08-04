@@ -4,7 +4,7 @@ class Api::V1::ProblemsController < ApplicationController
   skip_before_action :authenticate_user!
   before_action :require_api_key_or_authenticate_user!
 
-  FIELDS = %w(_id app_id app_name environment message where first_notice_at last_notice_at resolved resolved_at notices_count)
+  FIELDS = %w(_id app_id app_name environment hosts message where first_notice_at last_notice_at resolved resolved_at notices_count)
 
   def show
     result = benchmark("[api/v1/problems_controller/show] query time") do
