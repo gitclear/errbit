@@ -127,33 +127,33 @@
       - ntp
       - acl
 
-- include: resolver.yml
+- include_tasks: resolver.yml
   tags: resolver
 
-- include: ssh_keys.yml
+- include_tasks: ssh_keys.yml
   tags: ssh_keys
 
-- include: fail2ban.yml
+- include_tasks: fail2ban.yml
   tags: fail2ban
   when: inventory_hostname not in groups['haproxy']
 
-- include: ssh_security.yml
+- include_tasks: ssh_security.yml
   tags: ssh_security
 
-- include: logrotate.yml
+- include_tasks: logrotate.yml
   tags: logrotate
 
 - name: common | Install ufw
-  include: ufw.yml
+  include_tasks: ufw.yml
   tags: ufw
   when: inventory_hostname not in groups['errbit'] or inventory_hostname not in groups['haproxy']
 
 - name: Common | performance tweaks
-  include: performance.yml
+  include_tasks: performance.yml
   tags: performance
   when: ansible_virtualization_role == "host"
 
-- include: ../../common/tasks/webpack.yml
+- include_tasks: ../../common/tasks/webpack.yml
   tags: webpacker
   # To specify multiple groups, per https://stackoverflow.com/questions/61723033/run-ansible-task-on-multiple-inventory-host-groups can use (groups['app'] + groups['staging']) or this:
   when: inventory_hostname in lookup('inventory_hostnames', 'app:staging')

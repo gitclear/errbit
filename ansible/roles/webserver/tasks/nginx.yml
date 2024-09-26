@@ -6,7 +6,14 @@
     repo='deb https://oss-binaries.phusionpassenger.com/apt/passenger {{ ansible_distribution_release }} main'
     state=present
     update_cache=yes
-  when:  staging is defined or inventory_hostname in groups['errbit']
+  when:  staging is defined or inventory_hostname in groups['errbit'] and ansible_distribution_release != "noble"
+
+- name: nginx | add passenger OSS repo
+  apt_repository:
+    repo='deb https://oss-binaries.phusionpassenger.com/apt/passenger jammy main'
+    state=present
+    update_cache=yes
+  when:  staging is defined or inventory_hostname in groups['errbit'] and ansible_distribution_release == "noble"
 
 - name: nginx | Install nginx - Bionic
   apt:
@@ -24,6 +31,14 @@
       - nginx-extras=1.18.0-0ubuntu1.4
   when: ansible_distribution_release == 'focal'
 
+- name: nginx | Install nginx - Noble
+  apt:
+    state: present
+    pkg:
+      - nginx-common=1.24.0-2ubuntu7
+      - nginx-extras=1.24.0-2ubuntu7
+  when: ansible_distribution_release == 'noble'
+
 - name: nginx | install nginx passenger OSS packages - Focal
   apt: pkg={{ item.package }} state={{ item.state }}
   with_items:
@@ -33,6 +48,14 @@
     - { package: "passenger=1:6.0.18-1~focal1", state: "present" }
   notify: restart nginx
   when: staging is defined or inventory_hostname in groups['errbit'] and ansible_distribution_release == 'focal'
+
+- name: nginx | install nginx passenger OSS packages - Noble
+  apt: pkg={{ item.package }} state={{ item.state }}
+  with_items:
+    - { package: "passenger-enterprise", state: "absent" }
+    - { package: "passenger=1:6.0.22-1~jammy1", state: "present" }
+  notify: restart nginx
+  when: staging is defined or inventory_hostname in groups['errbit'] and ansible_distribution_release == 'noble'
 
 - name: nginx | Install nginx config file
   template:

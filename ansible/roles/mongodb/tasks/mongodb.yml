@@ -13,18 +13,29 @@
 #   errbit_production  3.9521484375GB
 #   local  0.078125GB
 ---
-- # Per https://www.digitalocean.com/community/tutorials/how-to-install-mongodb-on-ubuntu-20-04
-- name: mongodb | Fetch mongo signing key
-  apt_key:
-    url="https://www.mongodb.org/static/pgp/server-4.4.asc"
-    state=present
+# Per https://www.mongodb.com/docs/v4.4/tutorial/install-mongodb-on-ubuntu/
+# and https://www.mongodb.com/docs/v6.0/tutorial/install-mongodb-on-ubuntu/
+- name: mongodb | Add mongo source to apt
+  deb822_repository:
+    name: mongodb
+    types: deb
+    uris: https://repo.mongodb.org/apt/ubuntu
+    suites: '{{ ansible_distribution_release }}/mongodb-org/4.4'
+    components: multiverse
+    architectures: amd64
+    signed_by: https://www.mongodb.org/static/pgp/server-4.4.asc
+  when: ansible_distribution_major_version|int <= 20
 
 - name: mongodb | Add mongo source to apt
-  # WBH Aug 2021 hopefully correct translation?
-  # shell: echo "deb [ arch=amd64,arm64 ]  focal/mongodb-org/4.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.4.list
-  apt_repository:
-    repo: deb https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse
-    state: present
+  deb822_repository:
+    name: mongodb-org-6-0
+    types: deb
+    uris: https://repo.mongodb.org/apt/ubuntu
+    suites: 'jammy/mongodb-org/6.0'
+    components: multiverse
+    architectures: amd64
+    signed_by: https://www.mongodb.org/static/pgp/server-6.0.asc
+  when: ansible_distribution_major_version|int >= 22
 
 - name: mongodb | Install latest MongoDB release
   apt:
@@ -53,15 +64,57 @@
 - name: mongodb | Ensure daemon is running correctly
   service: name=mongod state=started daemon-reload=true
 
+
 # This makes the mongodb_user module work (used below)
+# Ubuntu packaged python3-pymongo version is very outdated
+
 - name: mongodb | Install python package manager
-  apt: pkg=python3-pip state=present
+  apt:
+    pkg:
+      - python3
+      - python3-venv
+      - pip
+  when: ansible_distribution_major_version|int < 24
 
 - name: mongodb | Install pymongo
-  pip: name=pymongo
+  pip:
+    name: pymongo
+  when: ansible_distribution_major_version|int < 24
+
+- name: mongodb | Install pymongo
+  pip:
+    name: pymongo
+    virtualenv: "{{ ansible_env.HOME }}/venvs/pymongo"
+    virtualenv_command: "python3 -m venv"
+  when: ansible_distribution_major_version|int < 24
+
+# Ubuntu 24.04 ships with Python 3.12, which does not work with pymongo (yet)
+# AttributeError: 'RawConfigParser' object has no attribute 'readfp'
+# Use python3.11 from deadsnakes PPA as a workaround
+
+- name: mongodb | Add deadsnakes PPA for python 3.11
+  ansible.builtin.apt_repository:
+    repo: ppa:deadsnakes/ppa
+  when: ansible_distribution_major_version|int >= 24
+
+- name: mongodb | Install python package manager
+  apt:
+    pkg:
+      - python3.11
+      - python3.11-venv
+      - pip
+    state: present
+  when: ansible_distribution_major_version|int >= 24
+
+- name: mongodb | Install pymongo
+  pip:
+    name: pymongo
+    virtualenv: "{{ ansible_env.HOME }}/venvs/pymongo"
+    virtualenv_command: "python3.11 -m venv"
+  when: ansible_distribution_major_version|int >= 24
 
 - name: mongodb | Create admin database
-  shell: mongo {{ internal_ip_address }} --eval "db.getSiblingDB('admin');"
+  shell: mongosh {{ internal_ip_address }} --eval "db.getSiblingDB('admin');"
 
 - name: mongodb | Add admin user
   mongodb_user:
@@ -69,6 +122,10 @@
     login_host: "{{ internal_ip_address }}"
     user: admin
     password: "{{ mongodb_admin_password }}"
+  # Use previously-installed python virtual env executable so that pymongo is available.
+  # This requires that ansible_python_interpreter = "/usr/bin/env python"
+  environment:
+    PATH: '{{ ansible_env.HOME }}/venvs/pymongo/bin:{{ ansible_env.PATH }}'
 
 - name: mongodb | Add app user
   mongodb_user:
@@ -78,6 +135,8 @@
     login_password: "{{ mongodb_admin_password }}"
     user: errbit_user
     password: "{{ mongodb_user_password }}"
+  environment:
+    PATH: '{{ ansible_env.HOME }}/venvs/pymongo/bin:{{ ansible_env.PATH }}'
 
 - name: mongodb | Increase ulimit
   lineinfile:

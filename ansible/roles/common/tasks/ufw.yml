@@ -26,29 +26,5 @@
     - 443
   when: inventory_hostname in groups['errbit']
 
-- name: ufw | allow incoming MNX monitoring
-  ufw:
-    rule: allow
-    from_ip: "{{ item.ip }}"
-    port: "{{ item.port }}"
-  with_items:
-    - { ip: "24.231.212.64/29", port: 22 }
-    - { ip: "204.8.232.8", port: 22 }
-    - { ip: "198.62.109.40", port: 5666 }
-    - { ip: "75.126.18.114", port: 22 }
-    - { ip: "75.126.1.120", port: 22 }
-    - { ip: "75.126.1.121", port: 22 }
-    - { ip: "75.126.1.122", port: 22 }
-    - { ip: "75.126.1.123", port: 22 }
-  tags: mnx_monitoring
-
-- name: ufw | allow outgoing MNX monitoring
-  ufw:
-    rule: allow
-    to_ip: "198.62.109.116"
-    to_port: "8086"
-    direction: "out"
-  tags: mnx_monitoring
-
 - name: Enable ufw
   ufw: state=enabled

@@ -1,6 +1,6 @@
 ---
 - name: Install MongoDB
-  include: mongodb.yml
+  include_tasks: mongodb.yml
   tags: mongodb
 
 - name: Add logrotate config

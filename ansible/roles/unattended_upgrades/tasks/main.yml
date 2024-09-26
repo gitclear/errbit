@@ -1,5 +1,5 @@
 ---
 
-- include: unattended_upgrades.yml
+- include_tasks: unattended_upgrades.yml
   tags: unattended_upgrades
 

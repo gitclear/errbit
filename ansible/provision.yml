@@ -28,14 +28,15 @@
   user: deployuser
   gather_facts: true
   roles:
-    - { role: certbot, tags: certbot, become: true }
+    #- { role: certbot, tags: certbot, become: true }
     - { role: mongodb, tags: mongodb, become: true }
     - { role: webserver, tags: nginx, become: true }
     # OSS passenger gets installed via the webserver role
     #- { role: passenger, tags: passenger, become: true }
     - { role: errbit, tags: [ rvm ruby bash ] }
   vars:
-    - user: deployuser
-    - ruby_version: 2.7.6
-    - ruby_gemset: errbit
-    - ruby_bundler_version: 2.4.16
+    user: deployuser
+    ruby_version: 2.7.6
+    ruby_gemset: errbit
+    ruby_bundler_version: 2.4.16
+    ansible_python_interpreter: "/usr/bin/env python3"

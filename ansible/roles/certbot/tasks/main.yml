@@ -6,21 +6,21 @@
     state: present
     update_cache: true
   tags: certbot
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_release != 'focal'
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version|int <  20
 
 - name: Certbot | Install certbot on Ubuntu < 20
   ansible.builtin.apt:
     pkg: "python-certbot-nginx"
   tags: certbot
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_release != 'focal'
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version|int < 20
 
-- name: Certbot | Install certbot on Ubuntu 20
+- name: Certbot | Install certbot on Ubuntu 20+
   ansible.builtin.apt:
     pkg:
       - certbot
       - python3-certbot-nginx
   tags: certbot
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_release == 'focal'
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version|int >= 20
 
 - name: Certbot | register the server
   ansible.builtin.command: certbot register --agree-tos -m devops@gitclear.com.com -n
